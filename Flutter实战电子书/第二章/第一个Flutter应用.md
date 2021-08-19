@@ -128,3 +128,135 @@ MaterialApp(
 );
 ```
 
+### 包管理
+
+#### 依赖包网址
+
+https://pub.dev/
+
+```ruby
+name: flutter_in_action
+description: First Flutter application.
+
+version: 1.0.0+1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^0.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+    
+flutter:
+  uses-material-design: true
+```
+
+- 将“english_words”（4.0.0版本）添加到依赖项列表，如下：
+
+```
+english_words: ^4.0.0
+```
+
+- 下载包。在Android Studio的编辑器视图中查看pubspec.yaml时（图2-6），单击右上角的 **Packages get** 。
+
+- 引入`english_words`包。
+
+```dart
+import 'package:english_words/english_words.dart';
+```
+
+- 使用`english_words`包来生成随机字符串。
+
+#### 其它依赖方式
+
+- 依赖本地包
+
+  ```
+  dependencies:
+  	pkg1:
+          path: ../../code/pkg1
+  ```
+
+- 依赖Git：你也可以依赖存储在Git仓库中的包。如果软件包位于仓库的根目录中，请使用以下语法
+
+  ```
+  dependencies:
+    pkg1:
+      git:
+        url: git://github.com/xxx/pkg1.git
+  ```
+
+  上面假定包位于Git存储库的根目录中。如果不是这种情况，可以使用path参数指定相对位置，例如：
+
+  ```
+  dependencies:
+    package1:
+      git:
+        url: git://github.com/flutter/packages.git
+        path: packages/package1        
+  ```
+
+### 资源管理
+
+### 调试Flutter应用
+
+### Flutter异常捕获
+
+#### Flutter框架异常捕获
+
+#### Dart单线程模型
+
+在Java和Objective-C（以下简称“OC”）中，如果程序发生异常且没有被捕获，那么程序将会终止，但是这在Dart或JavaScript中则不会！究其原因，这和它们的运行机制有关系。Java和OC都是多线程模型的编程语言，任意一个线程触发异常且该异常未被捕获时，就会导致整个进程退出。但Dart和JavaScript不会，它们都是单线程模型，运行机制很相似(但有区别)
+
+Dart 在单线程中是以消息循环机制来运行的，其中包含两个任务队列，一个是“微任务队列” **microtask queue**，另一个叫做“事件队列” **event queue**。从图中可以发现，微任务队列的执行优先级高于事件队列。
+
+```dart
+@override
+void performRebuild() {
+ ...
+  try {
+    //执行build方法  
+    built = build();
+  } catch (e, stack) {
+    // 有异常时则弹出错误提示  
+    built = ErrorWidget.builder(_debugReportException('building $this', e, stack));
+  } 
+  ...
+} 
+```
+
+#### 异常捕获上报
+
+```dart
+void collectLog(String line){
+    ... //收集日志
+}
+void reportErrorAndLog(FlutterErrorDetails details){
+    ... //上报错误和日志逻辑
+}
+
+FlutterErrorDetails makeDetails(Object obj, StackTrace stack){
+    ...// 构建错误信息
+}
+
+void main() {
+  FlutterError.onError = (FlutterErrorDetails details) {
+    reportErrorAndLog(details);
+  };
+  runZoned(
+    () => runApp(MyApp()),
+    zoneSpecification: ZoneSpecification(
+      print: (Zone self, ZoneDelegate parent, Zone zone, String line) {
+        collectLog(line); // 收集日志
+      },
+    ),
+    onError: (Object obj, StackTrace stack) {
+      var details = makeDetails(obj, stack);
+      reportErrorAndLog(details);
+    },
+  );
+}
+```
+
