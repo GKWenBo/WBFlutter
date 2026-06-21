@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 /// 商品卡片——首页商品网格的单元格，是最典型的可复用组件。
@@ -34,22 +35,18 @@ class ProductCard extends StatelessWidget {
             //    这是防溢出的关键——文字区按内容取高，图片自动吃掉剩下的，永远不会撑爆。
             //    （Expanded ≈ Auto Layout 里 hugging 低、优先被拉伸的那个 view。）
             Expanded(
-              child: Image.network(
-                imageUrl,
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
                 fit: BoxFit.cover, // 等比裁切填满（≈ contentMode = .scaleAspectFill + clipsToBounds）
                 width: double.infinity,
-                // 加载中显示占位转圈（≈ 给 UIImageView 设 placeholder）。
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child; // null 表示已加载完成
-                  return const ColoredBox(
-                    color: Color(0x11000000),
-                    child: Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  );
-                },
+                // 加载中占位（≈ 给 UIImageView 设 placeholder）。CachedNetworkImage 会缓存到内存+磁盘，
+                // 同一张图二次出现直接命中缓存，不再走网络。
+                placeholder: (context, url) => const ColoredBox(
+                  color: Color(0x11000000),
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
                 // 加载失败的兜底。
-                errorBuilder: (context, error, stack) => const ColoredBox(
+                errorWidget: (context, url, error) => const ColoredBox(
                   color: Color(0x11000000),
                   child: Icon(Icons.broken_image_outlined, size: 40),
                 ),
