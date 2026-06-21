@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../data/sample_products.dart';
+import '../domain/product.dart';
 import 'widgets/category_chip.dart';
 import 'widgets/home_banner.dart';
 import 'widgets/product_card.dart';
@@ -31,48 +33,12 @@ class HomePage extends StatelessWidget {
     (icon: Icons.videogame_asset, label: '游戏'),
   ];
 
-  static const _products =
-      <({String title, double price, String image, double rating})>[
-        (
-          title: 'iPhone 15 Pro 钛金属原色 256GB',
-          price: 999.0,
-          image: 'https://picsum.photos/seed/p1/300',
-          rating: 4.9,
-        ),
-        (
-          title: '无线降噪耳机 旗舰款',
-          price: 249.5,
-          image: 'https://picsum.photos/seed/p2/300',
-          rating: 4.6,
-        ),
-        (
-          title: '14 英寸轻薄笔记本电脑 M 系列芯片',
-          price: 1599.0,
-          image: 'https://picsum.photos/seed/p3/300',
-          rating: 4.8,
-        ),
-        (
-          title: '智能运动手表',
-          price: 199.0,
-          image: 'https://picsum.photos/seed/p4/300',
-          rating: 4.3,
-        ),
-        (
-          title: '4K 微单相机套机（含 18-55mm 镜头）',
-          price: 899.0,
-          image: 'https://picsum.photos/seed/p5/300',
-          rating: 4.7,
-        ),
-        (
-          title: '机械键盘 87 键',
-          price: 79.9,
-          image: 'https://picsum.photos/seed/p6/300',
-          rating: 4.5,
-        ),
-      ];
-
   @override
   Widget build(BuildContext context) {
+    // M2：商品数据现在是强类型的 List<Product>（由样例 JSON 解析而来）。
+    // 注意：这里每次 build 都解析一次，仅为教学演示；
+    // M4 会把"取数据"挪到 Riverpod provider 里，只取一次并缓存。
+    final List<Product> products = sampleProducts();
     return Scaffold(
       // SafeArea 避开刘海/灵动岛/底部条（≈ iOS 的 safeAreaInsets）。
       body: SafeArea(
@@ -101,15 +67,15 @@ class HomePage extends StatelessWidget {
                 ),
                 // delegate ≈ UICollectionViewDataSource：按 index 造 cell，按需懒构建。
                 delegate: SliverChildBuilderDelegate((context, i) {
-                  final p = _products[i];
+                  final Product p = products[i];
                   return ProductCard(
                     title: p.title,
                     price: p.price,
-                    imageUrl: p.image,
+                    imageUrl: p.thumbnail,
                     rating: p.rating,
                     onTap: () {}, // M5 接路由后跳详情页
                   );
-                }, childCount: _products.length),
+                }, childCount: products.length),
               ),
             ),
           ],
