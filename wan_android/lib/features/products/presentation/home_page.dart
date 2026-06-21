@@ -85,19 +85,20 @@ class HomePage extends StatelessWidget {
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
             const SliverToBoxAdapter(child: HomeBanner(imageUrls: _banners)),
             SliverToBoxAdapter(child: _buildCategoryRow()),
-            const SliverToBoxAdapter(child: SectionHeader(title: '热门商品')),
+            SliverToBoxAdapter(
+              child: SectionHeader(title: '为你推荐', onMore: () {}),
+            ),
 
             // 商品网格：SliverGrid 是"可懒加载的网格"。
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
               sliver: SliverGrid(
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2, // 每行 2 列
-                      mainAxisSpacing: 12, // 行间距
-                      crossAxisSpacing: 12, // 列间距
-                      childAspectRatio: 0.72, // 单元格宽/高比：<1 表示比正方形更高，给图+文留够空间
-                    ),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2, // 每行 2 列
+                  mainAxisSpacing: 12, // 行间距
+                  crossAxisSpacing: 12, // 列间距
+                  childAspectRatio: 0.72, // 单元格宽/高比：<1 表示比正方形更高，给图+文留够空间
+                ),
                 // delegate ≈ UICollectionViewDataSource：按 index 造 cell，按需懒构建。
                 delegate: SliverChildBuilderDelegate((context, i) {
                   final p = _products[i];
