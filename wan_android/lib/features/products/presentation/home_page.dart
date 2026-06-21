@@ -70,7 +70,7 @@ class HomePage extends StatelessWidget {
                   final Product p = products[i];
                   return ProductCard(
                     title: p.title,
-                    price: p.price,
+                    price: p.discountedPrice,
                     imageUrl: p.thumbnail,
                     rating: p.rating,
                     onTap: () {}, // M5 接路由后跳详情页

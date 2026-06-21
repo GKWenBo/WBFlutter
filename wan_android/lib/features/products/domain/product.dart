@@ -26,6 +26,7 @@ class Product {
 
   final String thumbnail; // 列表缩略图
   final List<String> images; // 详情多图
+  final List<String>? tags; // 标签列表，可能没有（null）
 
   const Product({
     required this.id,
@@ -39,6 +40,7 @@ class Product {
     this.brand,
     required this.thumbnail,
     required this.images,
+    required this.tags,
   });
 
   /// JSON → 对象。≈ Swift `JSONDecoder().decode(Product.self, from:)`。
