@@ -55,13 +55,10 @@ class _DetailView extends StatelessWidget {
           pinned: true,
           expandedHeight: 320,
           flexibleSpace: FlexibleSpaceBar(
-            background: CachedNetworkImage(
-              imageUrl: p.images.isNotEmpty ? p.images.first : p.thumbnail,
-              fit: BoxFit.cover,
-              errorWidget: (c, u, e) => const ColoredBox(
-                color: Color(0x11000000),
-                child: Icon(Icons.image_outlined, size: 48),
-              ),
+            // 大图换成可左右滑动的多图轮播（写法呼应首页 HomeBanner）。
+            // images 为空时退回用 thumbnail，保证至少有一张图。
+            background: _DetailGallery(
+              imageUrls: p.images.isNotEmpty ? p.images : [p.thumbnail],
             ),
           ),
         ),
@@ -97,7 +94,8 @@ class _DetailView extends StatelessWidget {
                 '\$${p.price.toStringAsFixed(2)}',
                 style: text.bodyMedium?.copyWith(
                   color: Colors.grey,
-                  decoration: TextDecoration.lineThrough, // 划线 ≈ NSAttributedString 删除线
+                  decoration:
+                      TextDecoration.lineThrough, // 划线 ≈ NSAttributedString 删除线
                 ),
               ),
               const Spacer(),
@@ -109,7 +107,10 @@ class _DetailView extends StatelessWidget {
                 ),
                 child: Text(
                   '-${p.discountPercentage.toStringAsFixed(0)}%',
-                  style: TextStyle(color: scheme.onErrorContainer, fontSize: 12),
+                  style: TextStyle(
+                    color: scheme.onErrorContainer,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],
@@ -140,10 +141,7 @@ class _DetailView extends StatelessWidget {
               runSpacing: 6,
               children: [
                 for (final t in p.tags!)
-                  Chip(
-                    label: Text(t),
-                    visualDensity: VisualDensity.compact,
-                  ),
+                  Chip(label: Text(t), visualDensity: VisualDensity.compact),
               ],
             ),
           ],
@@ -153,6 +151,82 @@ class _DetailView extends StatelessWidget {
           Text(p.description, style: text.bodyMedium?.copyWith(height: 1.5)),
         ],
       ),
+    );
+  }
+}
+
+/// 详情页顶部大图轮播：可左右滑动看多张图 + 底部小圆点指示器。
+/// 结构与首页 HomeBanner 基本一致（PageView + Positioned 圆点）；
+/// 区别只是这里用 CachedNetworkImage（带磁盘缓存），并铺满整个 SliverAppBar 背景、不加圆角。
+/// 要"记住当前第几页"来高亮圆点，是会变的状态 → StatefulWidget。
+class _DetailGallery extends StatefulWidget {
+  final List<String> imageUrls;
+
+  const _DetailGallery({required this.imageUrls});
+
+  @override
+  State<_DetailGallery> createState() => _DetailGalleryState();
+}
+
+class _DetailGalleryState extends State<_DetailGallery> {
+  // PageController 控制/监听翻页（≈ 你持有的 UIScrollView 控制器）。
+  final _controller = PageController();
+  int _current = 0;
+
+  @override
+  void dispose() {
+    // initState/字段里 new 出来的控制器，必须在这里释放，否则泄漏。dispose() ≈ deinit。
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      // Stack ≈ SwiftUI ZStack：往背景上叠加子 view，配合 Positioned 做绝对定位。
+      children: [
+        PageView.builder(
+          controller: _controller,
+          itemCount: widget.imageUrls.length,
+          // 翻页时更新当前页下标 → 重建 → 圆点高亮跟着变。
+          onPageChanged: (i) => setState(() => _current = i),
+          itemBuilder: (context, i) => CachedNetworkImage(
+            imageUrl: widget.imageUrls[i],
+            fit: BoxFit.cover,
+            width: double.infinity,
+            errorWidget: (c, u, e) => const ColoredBox(
+              color: Color(0x11000000),
+              child: Icon(Icons.image_outlined, size: 48),
+            ),
+          ),
+        ),
+        // 底部圆点指示器：只有多张图才显示。用 Positioned 绝对定位在轮播之上。
+        if (widget.imageUrls.length > 1)
+          Positioned(
+            bottom: 12,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(widget.imageUrls.length, (i) {
+                final active = i == _current;
+                // AnimatedContainer：属性变化时自动补间动画（≈ UIView.animate）。
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: active ? 18 : 6, // 当前页是长条，其余是小圆点
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: active
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.white70,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                );
+              }),
+            ),
+          ),
+      ],
     );
   }
 }
