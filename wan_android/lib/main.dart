@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
 
@@ -9,5 +10,7 @@ import 'app/app.dart';
 // 真正的应用装配（主题、首页、以后的路由）都放到 app/app.dart 里。
 // 这样以后接入状态管理（M4 的 ProviderScope）时，改动点很集中。
 void main() {
-  runApp(const WanShopApp());
+  // ProviderScope 是所有 Riverpod provider 状态的"容器根"（≈ 全局 DI 容器）。
+  // 必须包在最外层，App 里任何地方才能通过 ref 访问 provider。
+  runApp(const ProviderScope(child: WanShopApp()));
 }

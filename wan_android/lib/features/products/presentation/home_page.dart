@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/product_list_response.dart';
-import '../data/products_repository.dart';
+import '../domain/product.dart';
+import 'providers/products_providers.dart';
 import 'widgets/category_chip.dart';
 import 'widgets/home_banner.dart';
 import 'widgets/product_card.dart';
@@ -9,18 +10,17 @@ import 'widgets/section_header.dart';
 
 /// 首页（商品流）。
 ///
-/// M3：商品数据改为来自真实网络（DummyJSON）。
-/// 因为要持有"请求的 Future"并能"重试"（会变的状态），所以升级为 StatefulWidget。
-/// （M4 会把取数逻辑搬到 Riverpod，这个页面又能瘦回 Stateless 风格。）
-class HomePage extends StatefulWidget {
+/// M4：取数逻辑搬到了 Riverpod 的 ProductList provider，页面只负责"订阅 + 渲染"。
+/// 用 ConsumerStatefulWidget 是因为还要持有 ScrollController 做上拉分页（需要 dispose）。
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  // Banner / 分类入口暂时仍是本地假数据（M6 接分类接口时再换）。
+class _HomePageState extends ConsumerState<HomePage> {
+  // Banner / 分类入口仍是本地假数据（M6 接分类接口时再换）。
   static const _banners = [
     'https://picsum.photos/seed/banner1/800/350',
     'https://picsum.photos/seed/banner2/800/350',
@@ -36,106 +36,128 @@ class _HomePageState extends State<HomePage> {
     (icon: Icons.videogame_asset, label: '游戏'),
   ];
 
-  final _repo = ProductsRepository();
-
-  // 持有请求的 Future。关键：在 initState 里只建一次，
-  // 绝不能写在 build 里——否则每次重建都会重新发请求（FutureBuilder 最经典的坑）。
-  late Future<ProductListResponse> _future;
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    // initState ≈ viewDidLoad：页面首次创建时发起首屏请求。
-    _future = _repo.fetchProducts(limit: 20, skip: 0);
+    _scrollController.addListener(_onScroll);
   }
 
-  // 出错重试：重新建一个 Future 并触发重建。
-  void _reload() {
-    setState(() {
-      _future = _repo.fetchProducts(limit: 20, skip: 0);
-    });
+  @override
+  void dispose() {
+    _scrollController.dispose(); // 持有的控制器要释放（≈ deinit）
+    super.dispose();
+  }
+
+  // 滚动到接近底部时，触发"加载更多"。
+  void _onScroll() {
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 300) {
+      // ref.read：在回调里取一次 notifier，不订阅。
+      ref.read(productListProvider.notifier).loadMore();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // ref.watch：订阅 provider，状态一变（loading→data→…）就重建本页（≈ 订阅 @Published）。
+    final asyncProducts = ref.watch(productListProvider);
+
     return Scaffold(
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _buildSearchBar(context)),
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
-            const SliverToBoxAdapter(child: HomeBanner(imageUrls: _banners)),
-            SliverToBoxAdapter(child: _buildCategoryRow()),
-            SliverToBoxAdapter(
-              child: SectionHeader(title: '为你推荐', onMore: () {}),
-            ),
+        child: RefreshIndicator(
+          // 下拉刷新：ref.refresh 重建 provider→重新取第一页；返回的 Future 让转圈持续到加载完成。
+          onRefresh: () => ref.refresh(productListProvider.future),
+          child: CustomScrollView(
+            controller: _scrollController,
+            // 让内容很少时也能下拉（否则 RefreshIndicator 触发不了）。
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(child: _buildSearchBar(context)),
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+              const SliverToBoxAdapter(child: HomeBanner(imageUrls: _banners)),
+              SliverToBoxAdapter(child: _buildCategoryRow()),
+              SliverToBoxAdapter(
+                child: SectionHeader(title: '为你推荐', onMore: () {}),
+              ),
 
-            // FutureBuilder 把"一次异步请求"绑定到 UI：根据 snapshot 渲染三态。
-            // 它的 builder 这里返回的是 Sliver，所以能直接放进 slivers 列表。
-            FutureBuilder<ProductListResponse>(
-              future: _future,
-              builder: (context, snapshot) {
-                // 1) 进行中
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(48),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  );
-                }
-                // 2) 失败
-                if (snapshot.hasError) {
-                  return SliverToBoxAdapter(
-                    child: _buildError('${snapshot.error}'),
-                  );
-                }
-                // 3) 成功
-                final products = snapshot.data!.products;
-                return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                  sliver: SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 0.72,
-                        ),
-                    delegate: SliverChildBuilderDelegate((context, i) {
-                      final p = products[i];
-                      return ProductCard(
-                        title: p.title,
-                        price: p.discountedPrice,
-                        imageUrl: p.thumbnail,
-                        rating: p.rating,
-                        onTap: () {}, // M5 接路由后跳详情页
-                      );
-                    }, childCount: products.length),
-                  ),
-                );
-              },
-            ),
-          ],
+              // 三态渲染：AsyncValue.when 把 loading/error/data 三种情况一次写清。
+              // 这里每个分支返回"一组 sliver"，用 ...展开（spread）拼进 slivers。
+              ...asyncProducts.when(
+                loading: () => [_loadingSliver()],
+                error: (e, _) => [_errorSliver('$e')],
+                data: (products) => [
+                  _productGrid(products),
+                  // 还有下一页就显示底部"加载更多"转圈。
+                  if (ref.read(productListProvider.notifier).hasMore)
+                    _footerLoadingSliver(),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  /// 失败态：图标 + 错误文案 + 重试按钮。
-  Widget _buildError(String message) {
-    return Padding(
-      padding: const EdgeInsets.all(40),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off, size: 48, color: Colors.grey),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            ElevatedButton(onPressed: _reload, child: const Text('重试')),
-          ],
+  Widget _productGrid(List<Product> products) {
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.72,
+        ),
+        delegate: SliverChildBuilderDelegate((context, i) {
+          final p = products[i];
+          return ProductCard(
+            title: p.title,
+            price: p.discountedPrice,
+            imageUrl: p.thumbnail,
+            rating: p.rating,
+            onTap: () {}, // M5 接路由后跳详情页
+          );
+        }, childCount: products.length),
+      ),
+    );
+  }
+
+  Widget _loadingSliver() => const SliverToBoxAdapter(
+    child: Padding(
+      padding: EdgeInsets.all(48),
+      child: Center(child: CircularProgressIndicator()),
+    ),
+  );
+
+  Widget _footerLoadingSliver() => const SliverToBoxAdapter(
+    child: Padding(
+      padding: EdgeInsets.symmetric(vertical: 24),
+      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+    ),
+  );
+
+  Widget _errorSliver(String message) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off, size: 48, color: Colors.grey),
+              const SizedBox(height: 12),
+              Text(message, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                // 重试：让 provider 失效→重建→重新取数。
+                onPressed: () => ref.invalidate(productListProvider),
+                child: const Text('重试'),
+              ),
+            ],
+          ),
         ),
       ),
     );

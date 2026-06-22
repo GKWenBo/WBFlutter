@@ -37,13 +37,16 @@ class ProductCard extends StatelessWidget {
             Expanded(
               child: CachedNetworkImage(
                 imageUrl: imageUrl,
-                fit: BoxFit.cover, // 等比裁切填满（≈ contentMode = .scaleAspectFill + clipsToBounds）
+                fit: BoxFit
+                    .cover, // 等比裁切填满（≈ contentMode = .scaleAspectFill + clipsToBounds）
                 width: double.infinity,
                 // 加载中占位（≈ 给 UIImageView 设 placeholder）。CachedNetworkImage 会缓存到内存+磁盘，
                 // 同一张图二次出现直接命中缓存，不再走网络。
                 placeholder: (context, url) => const ColoredBox(
                   color: Color(0x11000000),
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                 ),
                 // 加载失败的兜底。
                 errorWidget: (context, url, error) => const ColoredBox(
@@ -56,7 +59,7 @@ class ProductCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(8),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start, // 文字区左对齐
                 children: [
                   Text(
                     title,
