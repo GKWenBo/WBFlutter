@@ -67,6 +67,74 @@ final class ProductsRepositoryProvider
 String _$productsRepositoryHash() =>
     r'834631e4e78a070de6c6ebc1f3c7ca848a85a01b';
 
+@ProviderFor(product)
+final productProvider = ProductFamily._();
+
+final class ProductProvider
+    extends $FunctionalProvider<AsyncValue<Product>, Product, FutureOr<Product>>
+    with $FutureModifier<Product>, $FutureProvider<Product> {
+  ProductProvider._({
+    required ProductFamily super.from,
+    required int super.argument,
+  }) : super(
+         retry: null,
+         name: r'productProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$productHash();
+
+  @override
+  String toString() {
+    return r'productProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<Product> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Product> create(Ref ref) {
+    final argument = this.argument as int;
+    return product(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ProductProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$productHash() => r'679b81b4327bac40c01f8adcba602711a92a2921';
+
+final class ProductFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<Product>, int> {
+  ProductFamily._()
+    : super(
+        retry: null,
+        name: r'productProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  ProductProvider call(int id) => ProductProvider._(argument: id, from: this);
+
+  @override
+  String toString() => r'productProvider';
+}
+
 /// 商品列表的状态管理 ≈ 你 iOS 的 ViewModel（MVVM）。
 ///
 /// build() 返回一个 Future，Riverpod 会自动把它包成 AsyncValue：
@@ -104,7 +172,7 @@ final class ProductListProvider
   ProductList create() => ProductList();
 }
 
-String _$productListHash() => r'6a18db26bcda44a9f6aacaa80c3b248c70d75e36';
+String _$productListHash() => r'5f1fecbfde64c8db778d6250ed29a976d5c5ad24';
 
 /// 商品列表的状态管理 ≈ 你 iOS 的 ViewModel（MVVM）。
 ///

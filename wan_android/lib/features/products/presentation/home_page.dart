@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../domain/product.dart';
 import 'providers/products_providers.dart';
@@ -118,7 +119,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             price: p.discountedPrice,
             imageUrl: p.thumbnail,
             rating: p.rating,
-            onTap: () {}, // M5 接路由后跳详情页
+            // 点卡片 → push 到详情页，把商品 id 放进路径。
+            onTap: () => context.push('/product/${p.id}'),
           );
         }, childCount: products.length),
       ),

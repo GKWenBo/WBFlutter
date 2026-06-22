@@ -12,6 +12,11 @@ part 'products_providers.g.dart';
 @riverpod
 ProductsRepository productsRepository(Ref ref) => ProductsRepository();
 
+@riverpod
+Future<Product> product(Ref ref, int id) {
+  return ref.watch(productsRepositoryProvider).fetchProduct(id);
+}
+
 /// 商品列表的状态管理 ≈ 你 iOS 的 ViewModel（MVVM）。
 ///
 /// build() 返回一个 Future，Riverpod 会自动把它包成 AsyncValue：
