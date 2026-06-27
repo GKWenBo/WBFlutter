@@ -2,8 +2,9 @@ import 'package:dio/dio.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/network/dio_client.dart';
-import 'product_list_response.dart';
+import '../../categories/domain/category.dart';
 import '../domain/product.dart';
+import 'product_list_response.dart';
 
 /// 商品数据仓库：UI 只调它的方法，不直接碰 dio。
 /// ≈ 你 iOS 里的 ProductService / Repository——隔离网络细节，便于替换数据源与单元测试。
@@ -47,6 +48,59 @@ class ProductsRepository {
       throw AppException.fromDio(e);
     } catch (e) {
       // 解析等其它错误。
+      throw ParseException('数据解析失败：$e');
+    }
+  }
+
+  /// 拉全部分类。返回值是数组，所以手动 map 每个元素到 Category.fromJson。
+  Future<List<Category>> fetchCategories() async {
+    try {
+      final res = await _dio.get('/products/categories');
+      final list = res.data as List<dynamic>;
+      return list
+          .map((e) => Category.fromJson(e as Map<String, dynamic>))
+          .toList(growable: false);
+    } on DioException catch (e) {
+      throw AppException.fromDio(e);
+    } catch (e) {
+      throw ParseException('数据解析失败：$e');
+    }
+  }
+
+  /// 按分类拉商品。返回的是分页信封，复用 ProductListResponse。
+  Future<ProductListResponse> fetchByCategory(
+    String slug, {
+    int limit = 30,
+    int skip = 0,
+  }) async {
+    try {
+      final res = await _dio.get(
+        '/products/category/$slug',
+        queryParameters: {'limit': limit, 'skip': skip},
+      );
+      return ProductListResponse.fromJson(res.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw AppException.fromDio(e);
+    } catch (e) {
+      throw ParseException('数据解析失败：$e');
+    }
+  }
+
+  /// 关键词搜索商品。同样返回分页信封。
+  Future<ProductListResponse> searchProducts(
+    String query, {
+    int limit = 30,
+    int skip = 0,
+  }) async {
+    try {
+      final res = await _dio.get(
+        '/products/search',
+        queryParameters: {'q': query, 'limit': limit, 'skip': skip},
+      );
+      return ProductListResponse.fromJson(res.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw AppException.fromDio(e);
+    } catch (e) {
       throw ParseException('数据解析失败：$e');
     }
   }

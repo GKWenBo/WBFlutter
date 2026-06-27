@@ -165,24 +165,28 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  /// 顶部假搜索框（M6 才做成真正可输入/可搜索的）。
+  /// 顶部搜索框：点一下进搜索页（它本身不输入，真正输入在 SearchPage）。
   Widget _buildSearchBar(BuildContext context) {
     final hint = Theme.of(context).hintColor;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.search, size: 20, color: hint),
-            const SizedBox(width: 8),
-            Text('搜索商品', style: TextStyle(color: hint)),
-          ],
+      // GestureDetector 让整条搜索框可点（≈ 给 view 加 tap 手势）。
+      child: GestureDetector(
+        onTap: () => context.push('/search'),
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.search, size: 20, color: hint),
+              const SizedBox(width: 8),
+              Text('搜索商品', style: TextStyle(color: hint)),
+            ],
+          ),
         ),
       ),
     );

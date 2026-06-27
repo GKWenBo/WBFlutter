@@ -3,9 +3,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/cart/presentation/cart_page.dart';
 import '../../features/categories/presentation/categories_page.dart';
+import '../../features/categories/presentation/category_products_page.dart';
 import '../../features/products/presentation/home_page.dart';
 import '../../features/products/presentation/product_detail_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
+import '../../features/search/presentation/search_page.dart';
 import '../main_scaffold.dart';
 
 /// 全局路由表 ≈ 你的路由中心 / Coordinator。
@@ -59,6 +61,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           // 路径参数永远是 String，自己转成 int（≈ segue 传参后做类型转换）。
           final id = int.parse(state.pathParameters['id']!);
           return ProductDetailPage(id: id);
+        },
+      ),
+
+      // 搜索页。
+      GoRoute(path: '/search', builder: (context, state) => const SearchPage()),
+
+      // 某分类的商品页：slug 进路径，展示名通过 extra 传（不进 URL）。
+      GoRoute(
+        path: '/category/:slug',
+        builder: (context, state) {
+          final slug = state.pathParameters['slug']!;
+          final name = state.extra as String? ?? slug;
+          return CategoryProductsPage(slug: slug, title: name);
         },
       ),
     ],
