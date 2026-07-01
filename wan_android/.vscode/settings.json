@@ -1,0 +1,12 @@
+{
+  // 保存文件时自动触发 Flutter 热重载（前提：App 是通过 VS Code 的 Run/Debug 启动的，
+  // 而不是在终端里手动 flutter run —— 终端启动的进程 VS Code 管不到）。
+  "dart.flutterHotReloadOnSave": "always",
+
+  // 保存时自动跑 dart format（≈ Xcode 的 "format on save"）。
+  "editor.formatOnSave": true,
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.rulers": [80]
+  }
+}

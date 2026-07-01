@@ -30,7 +30,13 @@ class CategoriesPage extends ConsumerWidget {
               leading: CircleAvatar(
                 child: Text(c.name.isNotEmpty ? c.name[0].toUpperCase() : '?'),
               ),
-              title: Text(c.name),
+              title: Text(
+                c.name,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               trailing: const Icon(Icons.chevron_right),
               // 跳分类商品页：slug 进路径，展示名通过 extra 传（不进 URL）。
               onTap: () => context.push('/category/${c.slug}', extra: c.name),
