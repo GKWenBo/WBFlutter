@@ -28,13 +28,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     'https://picsum.photos/seed/banner3/800/350',
   ];
 
-  static const _categories = <({IconData icon, String label})>[
-    (icon: Icons.phone_iphone, label: '手机'),
-    (icon: Icons.laptop_mac, label: '电脑'),
-    (icon: Icons.watch, label: '手表'),
-    (icon: Icons.headphones, label: '耳机'),
-    (icon: Icons.camera_alt, label: '相机'),
-    (icon: Icons.videogame_asset, label: '游戏'),
+  // slug 必须是 DummyJSON 真实存在的分类（GET /products/categories 能查到的那些），
+  // 瞎写一个不存在的 slug 不会报错，只会查到 total:0——这是接第三方 API 最容易踩的坑。
+  static const _categories = <({IconData icon, String label, String slug})>[
+    (icon: Icons.phone_iphone, label: '手机', slug: 'smartphones'),
+    (icon: Icons.laptop_mac, label: '电脑', slug: 'laptops'),
+    (icon: Icons.watch, label: '手表', slug: 'mens-watches'),
+    (icon: Icons.checkroom, label: '穿搭', slug: 'tops'),
+    (icon: Icons.camera_alt, label: '配件', slug: 'mobile-accessories'),
+    (icon: Icons.spa, label: '美妆', slug: 'beauty'),
   ];
 
   final _scrollController = ScrollController();
@@ -165,28 +167,24 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  /// 顶部搜索框：点一下进搜索页（它本身不输入，真正输入在 SearchPage）。
+  /// 顶部假搜索框（M6 才做成真正可输入/可搜索的）。
   Widget _buildSearchBar(BuildContext context) {
     final hint = Theme.of(context).hintColor;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      // GestureDetector 让整条搜索框可点（≈ 给 view 加 tap 手势）。
-      child: GestureDetector(
-        onTap: () => context.push('/search'),
-        child: Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.search, size: 20, color: hint),
-              const SizedBox(width: 8),
-              Text('搜索商品', style: TextStyle(color: hint)),
-            ],
-          ),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.search, size: 20, color: hint),
+            const SizedBox(width: 8),
+            Text('搜索商品', style: TextStyle(color: hint)),
+          ],
         ),
       ),
     );
@@ -203,7 +201,12 @@ class _HomePageState extends ConsumerState<HomePage> {
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final c = _categories[i];
-          return CategoryChip(icon: c.icon, label: c.label, onTap: () {});
+          return CategoryChip(
+            icon: c.icon,
+            label: c.label,
+            // 点分类 → push 到分类页；slug 放进路径，展示名通过 extra 传（呼应 categories_page 的写法）。
+            onTap: () => context.push('/category/${c.slug}', extra: c.label),
+          );
         },
       ),
     );
