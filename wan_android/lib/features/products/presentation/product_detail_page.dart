@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../cart/presentation/providers/cart_providers.dart';
 import '../domain/product.dart';
 import 'providers/products_providers.dart';
 
@@ -231,13 +232,14 @@ class _DetailGalleryState extends State<_DetailGallery> {
   }
 }
 
-/// 底部"加入购物车"栏。M7 接真实购物车后，这里会真正写入购物车 provider。
-class _AddToCartBar extends StatelessWidget {
+/// 底部"加入购物车"栏。M7 起真正写入全局 Cart provider。
+/// 改成 ConsumerWidget 是因为要 ref.read(cartProvider.notifier) 触发写操作。
+class _AddToCartBar extends ConsumerWidget {
   final Product product;
   const _AddToCartBar({required this.product});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -254,11 +256,12 @@ class _AddToCartBar extends StatelessWidget {
             ),
             FilledButton.icon(
               onPressed: () {
-                // 占位：M7 会改成真正加入购物车。
+                // ref.read(...).notifier：在事件回调里取一次 notifier 调用方法（写操作用 read，不用 watch）。
+                ref.read(cartProvider.notifier).addProduct(product);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('已加入购物车（占位，M7 接真实购物车）'),
-                    duration: Duration(seconds: 1),
+                  SnackBar(
+                    content: Text('已加入购物车：${product.title}'),
+                    duration: const Duration(seconds: 1),
                   ),
                 );
               },
