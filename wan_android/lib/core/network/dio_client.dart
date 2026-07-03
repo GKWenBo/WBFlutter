@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 
+import '../storage/auth_storage.dart';
+import 'auth_interceptor.dart';
 import 'logging_interceptor.dart';
 
 /// 全局 Dio 实例（≈ 你封装的 URLSession + 默认配置）。
@@ -15,7 +17,10 @@ class DioClient {
         receiveTimeout: const Duration(seconds: 10),
         headers: {'Accept': 'application/json'},
       ),
-    )..interceptors.add(LoggingInterceptor()); // 挂上日志拦截器（M8 再挂鉴权拦截器）
+    )..interceptors.addAll([
+        AuthInterceptor(AuthStorage()), // 先加 token（M8）
+        LoggingInterceptor(), // 再打日志，日志里能看到最终带没带 Authorization 头
+      ]);
   }
 
   /// 单例（≈ URLSession.shared 那种全局唯一）。

@@ -6,7 +6,7 @@
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "args": ["-d", "iPhone 17"]
+      "args": ["-d", "iPhone 17 Pro Max"]
     },
     {
       "name": "WanShop (Profile)",
@@ -14,7 +14,7 @@
       "type": "dart",
       "program": "lib/main.dart",
       "flutterMode": "profile",
-      "args": ["-d", "iPhone 17"]
+      "args": ["-d", "iPhone 17 Pro Max"]
     }
   ]
 }

@@ -1,15 +1,73 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// 我的页。M8 接入登录鉴权后，这里展示用户信息；M9/M10 加收藏、订单入口。现在先占位。
-class ProfilePage extends StatelessWidget {
+import '../../../core/widgets/error_view.dart';
+import '../../auth/presentation/providers/auth_providers.dart';
+
+/// 我的页。M8 起接入登录鉴权：go_router 的 redirect 已经保证"未登录进不了这一页"
+/// （见 app/router/app_router.dart），所以这里只管展示已登录用户的信息 + 登出入口。
+class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('我的')),
-      body: const Center(
-        child: Text('我的 · 建设中', style: TextStyle(fontSize: 20)),
+      appBar: AppBar(
+        title: const Text('我的'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: '退出登录',
+            onPressed: () => ref.read(authProvider.notifier).logout(),
+          ),
+        ],
+      ),
+      body: authState.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => ErrorView(
+          message: '加载用户信息失败：$error',
+          onRetry: () => ref.invalidate(authProvider),
+        ),
+        data: (user) {
+          if (user == null) {
+            // 正常流程走不到这里（redirect 已拦截）；留个兜底避免空白页。
+            return const Center(child: Text('未登录'));
+          }
+          return ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundImage: NetworkImage(user.image),
+                // 头像图裂了不该让整页崩掉（也不该让 widget 测试因"图片加载失败"报错）——
+                // 给个空实现相当于"吞掉"这个错误，≈ 你在 iOS 里给 SDWebImage 配的失败占位逻辑。
+                onBackgroundImageError: (_, _) {},
+              ),
+              const SizedBox(height: 16),
+              Text(
+                user.fullName,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                user.email,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '@${user.username}',
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

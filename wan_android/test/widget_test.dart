@@ -6,11 +6,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wan_android/app/app.dart';
+import 'package:wan_android/core/storage/auth_storage.dart';
+import 'package:wan_android/features/auth/presentation/providers/auth_providers.dart';
 import 'package:wan_android/features/categories/domain/category.dart';
 import 'package:wan_android/features/products/data/product_list_response.dart';
 import 'package:wan_android/features/products/data/products_repository.dart';
 import 'package:wan_android/features/products/domain/product.dart';
 import 'package:wan_android/features/products/presentation/providers/products_providers.dart';
+
+/// 假存储：widget 测试不该碰真实 Keychain/系统凭据库，也不需要真的登录态。
+class _FakeAuthStorage extends AuthStorage {
+  @override
+  Future<String?> readAccessToken() async => null;
+}
 
 /// 假的 Repository：widget 测试不该碰真实网络。
 /// 继承 ProductsRepository 并把每个方法都换成"立即返回空数据"，
@@ -55,6 +63,7 @@ void main() {
         // 这样 widget 测试完全不碰真实网络，跑得快也不会有残留请求把测试判失败。
         overrides: [
           productsRepositoryProvider.overrideWithValue(_FakeProductsRepository()),
+          authStorageProvider.overrideWithValue(_FakeAuthStorage()),
         ],
         child: const WanShopApp(),
       ),

@@ -261,7 +261,7 @@ class _AddToCartBar extends ConsumerWidget {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('已加入购物车：${product.title}'),
-                    duration: const Duration(seconds: 1),
+                    duration: const Duration(seconds: 2),
                   ),
                 );
               },
