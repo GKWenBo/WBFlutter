@@ -11,6 +11,16 @@ pluginManagement {
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
+        // 阿里云镜像：国内访问 plugins.gradle.org/mavenCentral 容易被代理弄乱 TLS
+        // （bad_record_mac），镜像放前面优先命中，官方源留着兜底。
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/releases") }
+        maven { url = uri("https://maven.aliyun.com/repository/central") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
+        maven { url = uri("https://maven.aliyun.com/repository/apache-snapshots") }
+        maven { url = uri("https://maven.aliyun.com/nexus/content/groups/public/") }
+        maven { url = uri("https://jitpack.io") }
         google()
         mavenCentral()
         gradlePluginPortal()
