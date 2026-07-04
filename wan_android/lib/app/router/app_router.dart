@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/cart/presentation/cart_page.dart';
+import '../../features/favorites/presentation/favorites_page.dart';
 import '../../features/categories/presentation/categories_page.dart';
 import '../../features/categories/presentation/category_products_page.dart';
 import '../../features/products/presentation/home_page.dart';
@@ -103,6 +104,15 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // 搜索页。
       GoRoute(path: '/search', builder: (context, state) => const SearchPage()),
+
+      // 收藏页：顶层路由，从"我的"页菜单 push 进入。
+      // 注意它**不在** _protectedPaths 里：收藏是"这台设备上的本地数据"，不挂在账号下，
+      // 没登录也允许看（对比 /profile 展示的是账号数据，必须登录）。
+      // 如果以后收藏改成走服务端接口（挂账号），把 '/favorites' 加进 _protectedPaths 即可。
+      GoRoute(
+        path: '/favorites',
+        builder: (context, state) => const FavoritesPage(),
+      ),
 
       // 登录页：顶层路由，不在 shell 里——未登录被拦截时应该看到一个没有底部 Tab 的全屏页面。
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),

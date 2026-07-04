@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../cart/presentation/providers/cart_providers.dart';
+import '../../favorites/presentation/providers/favorites_providers.dart';
 import '../domain/product.dart';
 import 'providers/products_providers.dart';
 
@@ -232,7 +233,7 @@ class _DetailGalleryState extends State<_DetailGallery> {
   }
 }
 
-/// 底部"加入购物车"栏。M7 起真正写入全局 Cart provider。
+/// 底部"加入购物车"栏。M7 起真正写入全局 Cart provider；M9 加收藏♥按钮。
 /// 改成 ConsumerWidget 是因为要 ref.read(cartProvider.notifier) 触发写操作。
 class _AddToCartBar extends ConsumerWidget {
   final Product product;
@@ -240,11 +241,26 @@ class _AddToCartBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // watch 派生的 isFavoriteProvider(id)（family + 派生的组合）：
+    // 收藏列表变化时，只有"这个商品"的收藏态变了才会触发这里重建。
+    final isFav = ref.watch(isFavoriteProvider(product.id));
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         child: Row(
           children: [
+            // IconButton 自带"选中态"：isSelected + selectedIcon，
+            // ≈ UIButton 的 isSelected 配 setImage(_:for: .selected)。
+            // 好处是语义交给框架（无障碍朗读会带上选中状态），不用自己三元切 icon。
+            IconButton(
+              isSelected: isFav,
+              icon: const Icon(Icons.favorite_border),
+              selectedIcon: const Icon(Icons.favorite, color: Colors.redAccent),
+              tooltip: isFav ? '取消收藏' : '收藏',
+              onPressed: () =>
+                  ref.read(favoritesProvider.notifier).toggle(product),
+            ),
             Expanded(
               child: Text(
                 '\$${product.discountedPrice.toStringAsFixed(2)}',

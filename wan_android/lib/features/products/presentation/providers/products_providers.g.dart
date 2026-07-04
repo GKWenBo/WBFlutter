@@ -67,6 +67,52 @@ final class ProductsRepositoryProvider
 String _$productsRepositoryHash() =>
     r'834631e4e78a070de6c6ebc1f3c7ca848a85a01b';
 
+/// 首页缓存的 DI provider（测试时同样可 override）。
+
+@ProviderFor(productsCache)
+final productsCacheProvider = ProductsCacheProvider._();
+
+/// 首页缓存的 DI provider（测试时同样可 override）。
+
+final class ProductsCacheProvider
+    extends $FunctionalProvider<ProductsCache, ProductsCache, ProductsCache>
+    with $Provider<ProductsCache> {
+  /// 首页缓存的 DI provider（测试时同样可 override）。
+  ProductsCacheProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'productsCacheProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$productsCacheHash();
+
+  @$internal
+  @override
+  $ProviderElement<ProductsCache> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  ProductsCache create(Ref ref) {
+    return productsCache(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ProductsCache value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ProductsCache>(value),
+    );
+  }
+}
+
+String _$productsCacheHash() => r'5a9838d59584971c58554bd3f812b86d1d7a370f';
+
 @ProviderFor(product)
 final productProvider = ProductFamily._();
 
@@ -172,7 +218,7 @@ final class ProductListProvider
   ProductList create() => ProductList();
 }
 
-String _$productListHash() => r'5f1fecbfde64c8db778d6250ed29a976d5c5ad24';
+String _$productListHash() => r'c53f86cc02e9c0a81adc9af57d52bb0361222817';
 
 /// 商品列表的状态管理 ≈ 你 iOS 的 ViewModel（MVVM）。
 ///

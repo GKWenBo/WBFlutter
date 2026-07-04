@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../../core/error/failure.dart';
+import '../../data/products_cache.dart';
 import '../../data/products_repository.dart';
 import '../../domain/product.dart';
 
@@ -11,6 +13,10 @@ part 'products_providers.g.dart';
 /// 测试时可以 `overrideWith` 换成 mock（这就是 Riverpod 自带的 DI 能力）。
 @riverpod
 ProductsRepository productsRepository(Ref ref) => ProductsRepository();
+
+/// 首页缓存的 DI provider（测试时同样可 override）。
+@riverpod
+ProductsCache productsCache(Ref ref) => ProductsCache();
 
 @riverpod
 Future<Product> product(Ref ref, int id) {
@@ -27,17 +33,36 @@ class ProductList extends _$ProductList {
 
   bool _hasMore = true;
   bool _isLoadingMore = false;
+  bool _isFromCache = false;
 
   /// 是否还有下一页（UI 用它决定要不要显示"加载更多"footer）。
   bool get hasMore => _hasMore;
+
+  /// 当前展示的是否是离线缓存（UI 用它决定要不要显示"离线数据"横幅）。
+  bool get isFromCache => _isFromCache;
 
   @override
   Future<List<Product>> build() async {
     // 首屏：取第一页。这期间页面自动是 loading 态。
     final repo = ref.watch(productsRepositoryProvider);
-    final page = await repo.fetchProducts(limit: _pageSize, skip: 0);
-    _hasMore = page.hasMore;
-    return page.products;
+    final cache = ref.watch(productsCacheProvider);
+    try {
+      final page = await repo.fetchProducts(limit: _pageSize, skip: 0);
+      _hasMore = page.hasMore;
+      _isFromCache = false;
+      // 拿到新数据顺手写缓存（不 await 的后台副作用，同 Cart._persist）。
+      cache.save(page.products);
+      return page.products;
+    } on AppException {
+      // 网络挂了 → 降级读缓存（"stale-while-error"：宁给旧数据，不给白屏）。
+      // 只捕获 AppException（网络/服务器/解析），别的错误照常抛——
+      // catch 得太宽会把真正的 bug 也吞成"离线态"，排查时很要命。
+      final cached = await cache.load();
+      if (cached == null || cached.isEmpty) rethrow; // 没缓存可兜 → 维持原错误态
+      _hasMore = false; // 离线数据只有这一页，别再触发上拉分页
+      _isFromCache = true;
+      return cached;
+    }
   }
 
   /// 上拉加载更多：把下一页"追加"到现有列表后面。

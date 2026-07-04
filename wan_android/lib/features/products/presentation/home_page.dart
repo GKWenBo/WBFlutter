@@ -91,6 +91,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                 loading: () => [_loadingSliver()],
                 error: (e, _) => [_errorSliver('$e')],
                 data: (products) => [
+                  // M9：这批数据是离线缓存兜底来的，就在网格上方亮一条横幅提示。
+                  if (ref.read(productListProvider.notifier).isFromCache)
+                    SliverToBoxAdapter(child: _offlineBanner()),
                   _productGrid(products),
                   // 还有下一页就显示底部"加载更多"转圈。
                   if (ref.read(productListProvider.notifier).hasMore)
@@ -126,6 +129,25 @@ class _HomePageState extends ConsumerState<HomePage> {
           );
         }, childCount: products.length),
       ),
+    );
+  }
+
+  /// 离线提示横幅。MaterialBanner ≈ 你在 iOS 里自己画的顶部通告条，
+  /// Material 帮你把"图标 + 文案 + 操作按钮"的排版和配色都定好了。
+  /// 它有两种用法：ScaffoldMessenger.of(context).showMaterialBanner(...) 悬浮盖在页面顶部，
+  /// 或者像这里一样直接当普通 Widget 排进布局——后者跟着内容一起滚动、不用管移除时机，
+  /// 更适合"这批数据本身是离线的"这种和内容绑定的提示。
+  Widget _offlineBanner() {
+    return MaterialBanner(
+      leading: const Icon(Icons.wifi_off),
+      content: const Text('网络不可用，正在展示上次的商品数据'),
+      actions: [
+        TextButton(
+          // 和错误态的"重试"同一招：让 provider 失效重建，重新走一遍网络请求。
+          onPressed: () => ref.invalidate(productListProvider),
+          child: const Text('重新加载'),
+        ),
+      ],
     );
   }
 

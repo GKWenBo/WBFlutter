@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/error_view.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../favorites/presentation/providers/favorites_providers.dart';
 
 /// 我的页。M8 起接入登录鉴权：go_router 的 redirect 已经保证"未登录进不了这一页"
 /// （见 app/router/app_router.dart），所以这里只管展示已登录用户的信息 + 登出入口。
+/// M9 加菜单区（我的收藏入口）。
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
@@ -65,9 +68,46 @@ class ProfilePage extends ConsumerWidget {
                   context,
                 ).textTheme.bodySmall?.copyWith(color: Colors.grey),
               ),
+              const SizedBox(height: 24),
+              _buildMenu(context, ref),
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// 菜单区：Card 包一组 ListTile（≈ UITableView 的 insetGrouped 分组样式）。
+  /// 每行 = ListTile（M6 分类页用过）：leading 图标 / title 文案 / trailing 附加信息+箭头。
+  Widget _buildMenu(BuildContext context, WidgetRef ref) {
+    // 只订阅派生的"收藏数"：收藏列表内容怎么变不关心，数字变了才重建这块。
+    final favCount = ref.watch(favoritesCountProvider);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.favorite_border),
+            title: const Text('我的收藏'),
+            trailing: Row(
+              // Row 默认撑满整行会把 trailing 挤爆，mainAxisSize.min 让它只占内容宽度
+              //（≈ 内容自适应的 intrinsic size）。
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (favCount > 0)
+                  Text(
+                    '$favCount',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+            onTap: () => context.push('/favorites'),
+          ),
+        ],
       ),
     );
   }
