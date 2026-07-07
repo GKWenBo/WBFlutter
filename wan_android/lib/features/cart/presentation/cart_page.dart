@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/error_view.dart';
 import '../domain/cart_item.dart';
@@ -61,12 +62,9 @@ class CartPage extends ConsumerWidget {
                       ),
                     ),
                     FilledButton(
-                      onPressed: () {
-                        // 占位：M10 会做成真正的结算流程。
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('结算流程（占位，M10 接真实下单）')),
-                        );
-                      },
+                      // M10：push 到结算页。/checkout 在鉴权表里，
+                      // 未登录会被 redirect 拦去登录页，登录后再回来。
+                      onPressed: () => context.push('/checkout'),
                       child: const Text('去结算'),
                     ),
                   ],

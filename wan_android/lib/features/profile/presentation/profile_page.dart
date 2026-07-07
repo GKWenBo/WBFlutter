@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../favorites/presentation/providers/favorites_providers.dart';
+import '../../orders/presentation/providers/orders_providers.dart';
 
 /// 我的页。M8 起接入登录鉴权：go_router 的 redirect 已经保证"未登录进不了这一页"
 /// （见 app/router/app_router.dart），所以这里只管展示已登录用户的信息 + 登出入口。
@@ -80,35 +81,61 @@ class ProfilePage extends ConsumerWidget {
   /// 菜单区：Card 包一组 ListTile（≈ UITableView 的 insetGrouped 分组样式）。
   /// 每行 = ListTile（M6 分类页用过）：leading 图标 / title 文案 / trailing 附加信息+箭头。
   Widget _buildMenu(BuildContext context, WidgetRef ref) {
-    // 只订阅派生的"收藏数"：收藏列表内容怎么变不关心，数字变了才重建这块。
+    // 只订阅派生的"数量"provider：列表内容怎么变不关心，数字变了才重建这块。
     final favCount = ref.watch(favoritesCountProvider);
+    final orderCount = ref.watch(ordersCountProvider);
 
     return Card(
       margin: EdgeInsets.zero,
       child: Column(
         children: [
-          ListTile(
-            leading: const Icon(Icons.favorite_border),
-            title: const Text('我的收藏'),
-            trailing: Row(
-              // Row 默认撑满整行会把 trailing 挤爆，mainAxisSize.min 让它只占内容宽度
-              //（≈ 内容自适应的 intrinsic size）。
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (favCount > 0)
-                  Text(
-                    '$favCount',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                const Icon(Icons.chevron_right),
-              ],
-            ),
+          _menuRow(
+            context,
+            icon: Icons.favorite_border,
+            title: '我的收藏',
+            count: favCount,
             onTap: () => context.push('/favorites'),
+          ),
+          const Divider(height: 1, indent: 56), // indent 对齐文字起点，图标下不压线
+          _menuRow(
+            context,
+            icon: Icons.receipt_long_outlined,
+            title: '我的订单',
+            count: orderCount,
+            onTap: () => context.push('/orders'),
           ),
         ],
       ),
+    );
+  }
+
+  /// 菜单行模板：图标 + 标题 + （数量）+ 箭头。
+  Widget _menuRow(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required int count,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      trailing: Row(
+        // Row 默认撑满整行会把 trailing 挤爆，mainAxisSize.min 让它只占内容宽度
+        //（≈ 内容自适应的 intrinsic size）。
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (count > 0)
+            Text(
+              '$count',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+      onTap: onTap,
     );
   }
 }

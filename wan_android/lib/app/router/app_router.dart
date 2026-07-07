@@ -6,6 +6,8 @@ import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/cart/presentation/cart_page.dart';
 import '../../features/favorites/presentation/favorites_page.dart';
+import '../../features/orders/presentation/checkout_page.dart';
+import '../../features/orders/presentation/orders_page.dart';
 import '../../features/categories/presentation/categories_page.dart';
 import '../../features/categories/presentation/category_products_page.dart';
 import '../../features/products/presentation/home_page.dart';
@@ -15,8 +17,8 @@ import '../../features/search/presentation/search_page.dart';
 import '../main_scaffold.dart';
 
 /// 需要登录才能访问的路径前缀。M8 先只挡"我的"；
-/// 后续模块（比如 M10 结算）要加鉴权门槛时，往这个表里加一项就行。
-const _protectedPaths = ['/profile'];
+/// M10 兑现了当初的承诺：结算必须登录，加一项就完事，redirect 逻辑一行没动。
+const _protectedPaths = ['/profile', '/checkout'];
 
 /// 桥接器：把 Riverpod 的登录态变化"转发"成 go_router 能听懂的信号。
 ///
@@ -113,6 +115,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/favorites',
         builder: (context, state) => const FavoritesPage(),
       ),
+
+      // 结算页：在 _protectedPaths 里（结算前必须登录，电商惯例）。
+      GoRoute(
+        path: '/checkout',
+        builder: (context, state) => const CheckoutPage(),
+      ),
+
+      // 订单列表：和 /favorites 一样是本地数据，不进鉴权表
+      //（入口在"我的"页里，正常路径本来就已登录）。
+      GoRoute(path: '/orders', builder: (context, state) => const OrdersPage()),
 
       // 登录页：顶层路由，不在 shell 里——未登录被拦截时应该看到一个没有底部 Tab 的全屏页面。
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
