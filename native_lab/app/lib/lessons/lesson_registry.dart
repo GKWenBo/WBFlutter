@@ -1,6 +1,7 @@
 import 'lesson.dart';
 import 'l0/l0_anatomy_page.dart';
 import 'l1/l1_device_info_page.dart';
+import 'l2/l2_analytics_page.dart';
 
 /// 课程注册表：App 首页列表的数据源。
 /// 每课过关提交时手动翻状态；下一课开课时把它的 status 改成
@@ -20,11 +21,12 @@ final List<Lesson> lessonRegistry = [
     status: LessonStatus.done,
     pageBuilder: (_) => const L1DeviceInfoPage(),
   ),
-  const Lesson(
+  Lesson(
     id: 'L2',
     title: '数据编解码与复杂参数',
     scenario: '埋点桥：Flutter 埋点走原生统计 SDK',
-    status: LessonStatus.locked,
+    status: LessonStatus.done,
+    pageBuilder: (_) => const L2AnalyticsPage(),
   ),
   const Lesson(
     id: 'L3',

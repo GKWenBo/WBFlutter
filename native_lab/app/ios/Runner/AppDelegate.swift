@@ -16,6 +16,8 @@ import UIKit
     // （插件走 pluginRegistry，应用自己的桥走这里——头文件注释原话就是
     //  "application-level method channels"。）
     DeviceInfoBridge.register(messenger: engineBridge.applicationRegistrar.messenger())
+    // 第二条 channel 并列注册：一个 App 挂多条 channel 靠名字区分，互不干扰。
+    AnalyticsBridge.register(messenger: engineBridge.applicationRegistrar.messenger())
   }
 }
 
@@ -64,6 +66,53 @@ enum DeviceInfoBridge {
     default:
       // 方法名对不上：Dart 侧收到 MissingPluginException 的近亲——
       // FlutterMethodNotImplemented，防止两端方法清单悄悄漂移。
+      result(FlutterMethodNotImplemented)
+    }
+  }
+}
+
+/// L2 埋点桥（原生侧）。内存 buffer 模拟一个统计 SDK——
+/// 真实场景这里换成 SDK 的 track()/logEvent() 调用。
+enum AnalyticsBridge {
+  // 模拟统计 SDK 的事件缓存。value 用 Any 才能装下 Dart 那边的混合类型。
+  private static var buffer: [[String: Any]] = []
+
+  static func register(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "com.wenbo.native_lab/analytics", // 与 Dart 逐字符一致
+      binaryMessenger: messenger)
+    channel.setMethodCallHandler(handle)
+  }
+
+  private static func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    switch call.method {
+    case "logEvent":
+      // Dart 的 Map<String,Object?> 经 StandardMessageCodec 解成 NSDictionary
+      // → [String: Any]。数字统一是 NSNumber：取值时 .intValue/.doubleValue。
+      guard let map = call.arguments as? [String: Any] else {
+        result(FlutterError(code: "BAD_ARGS", message: "logEvent 期望 Map", details: nil))
+        return
+      }
+      buffer.append(map)
+      result(buffer.count) // 自增序号；Int 会被编码回 Dart 的 int
+    case "logBatch":
+      // 顶层参数是数组：Dart List<Map> → NSArray → [[String: Any]]。
+      guard let list = call.arguments as? [[String: Any]] else {
+        result(FlutterError(code: "BAD_ARGS", message: "logBatch 期望 List<Map>", details: nil))
+        return
+      }
+      buffer.append(contentsOf: list)
+      result(buffer.count) // 累加后的新总数
+    case "fetchLoggedEvents":
+      result(buffer) // [[String:Any]] → Dart List<Map>
+    case "uploadRawLog":
+      // 二进制：Dart Uint8List → FlutterStandardTypedData，.data 是 Data。
+      guard let typed = call.arguments as? FlutterStandardTypedData else {
+        result(FlutterError(code: "BAD_ARGS", message: "uploadRawLog 期望二进制", details: nil))
+        return
+      }
+      result(typed.data.count)
+    default:
       result(FlutterMethodNotImplemented)
     }
   }

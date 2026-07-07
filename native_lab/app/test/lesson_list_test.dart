@@ -16,9 +16,10 @@ void main() {
 
   testWidgets('点击锁定课时只弹提示，不跳转', (tester) async {
     await tester.pumpWidget(const NativeLabApp());
-    await tester.tap(find.text('数据编解码与复杂参数'));
+    // L2 已解锁，锁定样本换成 L3。
+    await tester.tap(find.text('EventChannel：原生持续推流'));
     await tester.pump(); // 推一帧，让 SnackBar 开始入场
-    expect(find.text('先完成前面的课时，再解锁 L2'), findsOneWidget);
+    expect(find.text('先完成前面的课时，再解锁 L3'), findsOneWidget);
   });
 
   testWidgets('点击 L0 进入原生工程解剖页', (tester) async {
