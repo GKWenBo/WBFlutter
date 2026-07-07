@@ -1,5 +1,6 @@
 import 'lesson.dart';
 import 'l0/l0_anatomy_page.dart';
+import 'l1/l1_device_info_page.dart';
 
 /// 课程注册表：App 首页列表的数据源。
 /// 每课过关提交时手动翻状态；下一课开课时把它的 status 改成
@@ -12,11 +13,12 @@ final List<Lesson> lessonRegistry = [
     status: LessonStatus.done,
     pageBuilder: (_) => const L0AnatomyPage(),
   ),
-  const Lesson(
+  Lesson(
     id: 'L1',
     title: 'MethodChannel：Flutter 调原生',
     scenario: '设备信息上报（机型/系统版本/电池）',
-    status: LessonStatus.locked,
+    status: LessonStatus.done,
+    pageBuilder: (_) => const L1DeviceInfoPage(),
   ),
   const Lesson(
     id: 'L2',
