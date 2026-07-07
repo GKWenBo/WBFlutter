@@ -1,4 +1,5 @@
 import Flutter
+import Network
 import UIKit
 
 @main
@@ -18,6 +19,8 @@ import UIKit
     DeviceInfoBridge.register(messenger: engineBridge.applicationRegistrar.messenger())
     // 第二条 channel 并列注册：一个 App 挂多条 channel 靠名字区分，互不干扰。
     AnalyticsBridge.register(messenger: engineBridge.applicationRegistrar.messenger())
+    // 第三条：EventChannel（网络状态推流）。
+    NetworkBridge.register(messenger: engineBridge.applicationRegistrar.messenger())
   }
 }
 
@@ -115,5 +118,63 @@ enum AnalyticsBridge {
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+}
+
+/// L3 网络状态桥（原生侧）。EventChannel 的原生端 = 一个 FlutterStreamHandler。
+enum NetworkBridge {
+  // 保持强引用：StreamHandler 持有 NWPathMonitor，别让它被释放（handler 被回收就收不到事件了）。
+  private static var handler: NetworkStatusStreamHandler?
+
+  static func register(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterEventChannel(
+      name: "com.wenbo.native_lab/network_status", // 三端逐字符一致
+      binaryMessenger: messenger)
+    let h = NetworkStatusStreamHandler()
+    channel.setStreamHandler(h)
+    handler = h
+  }
+}
+
+/// 订阅生命周期对照 iOS：onListen ≈ addObserver / Combine sink，
+/// onCancel ≈ removeObserver / AnyCancellable.cancel()。
+final class NetworkStatusStreamHandler: NSObject, FlutterStreamHandler {
+  // ⚠️ NWPathMonitor 一旦 cancel() 就报废、不能重启——所以不能复用同一实例，
+  // 必须每次 onListen 新建（否则第二次订阅拿到的是死 monitor，永不回调 → 页面卡 loading）。
+  private var monitor: NWPathMonitor?
+  private let queue = DispatchQueue(label: "com.wenbo.native_lab.netmonitor")
+
+  // Dart 侧一 listen，这里就被调用：新建 monitor，拿到 sink，开始把事件往里推。
+  func onListen(
+    withArguments arguments: Any?,
+    eventSink events: @escaping FlutterEventSink
+  ) -> FlutterError? {
+    let m = NWPathMonitor()
+    m.pathUpdateHandler = { path in
+      let type: String
+      let level: Int
+      if path.status == .satisfied {
+        type = path.usesInterfaceType(.wifi) ? "wifi" : "cellular"
+        level = 3 // NWPath 拿不到真实信号强度，先占位满格（练习重点是 Map 编解码）
+      } else {
+        type = "none"
+        level = 0
+      }
+      // L3 课后练习：从推 String 升级成推 Map——StandardMessageCodec 里
+      // 流事件也能是 Map/List，编解码规则和 L2 的方法参数完全一样。
+      // NWPathMonitor 回调在后台队列，事件必须回主线程投递给 sink（同 L1 规矩）。
+      DispatchQueue.main.async { events(["type": type, "level": level]) }
+    }
+    m.start(queue: queue)
+    monitor = m
+    return nil
+  }
+
+  // Dart 侧取消订阅（StreamBuilder dispose）：cancel 当前 monitor 并丢弃，
+  // 下次 onListen 会新建一个（cancel 过的不能复用）。
+  func onCancel(withArguments arguments: Any?) -> FlutterError? {
+    monitor?.cancel()
+    monitor = nil
+    return nil
   }
 }

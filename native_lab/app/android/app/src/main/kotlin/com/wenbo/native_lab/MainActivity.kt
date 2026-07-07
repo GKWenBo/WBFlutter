@@ -1,10 +1,13 @@
 package com.wenbo.native_lab
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.BatteryManager
 import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
@@ -88,5 +91,39 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        // L3：第三条 channel，且是第一条 EventChannel（网络状态持续推流）。
+        // 对照 iOS：StreamHandler 的 onListen/onCancel 两端命名一致（Flutter 统一），
+        // 底层分别是 register/unregister NetworkCallback 与 NWPathMonitor 的 start/cancel。
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.wenbo.native_lab/network_status" // 三端逐字符一致
+        ).setStreamHandler(object : EventChannel.StreamHandler {
+            private var callback: ConnectivityManager.NetworkCallback? = null
+
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+                val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val cb = object : ConnectivityManager.NetworkCallback() {
+                    // 回调在非主线程，事件要 runOnUiThread 投递（同 iOS 回主线程）。
+                    // L3 课后练习：推 Map{'type','level'} 而非裸字符串（level 占位满格 3）,
+                    // 与 iOS 端 events(["type":..., "level":...]) 逐字段对齐。
+                    override fun onAvailable(network: Network) {
+                        runOnUiThread { events.success(mapOf("type" to "wifi", "level" to 3)) }
+                    }
+
+                    override fun onLost(network: Network) {
+                        runOnUiThread { events.success(mapOf("type" to "none", "level" to 0)) }
+                    }
+                }
+                cm.registerDefaultNetworkCallback(cb)
+                callback = cb
+            }
+
+            override fun onCancel(arguments: Any?) {
+                val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                callback?.let { cm.unregisterNetworkCallback(it) }
+                callback = null
+            }
+        })
     }
 }
