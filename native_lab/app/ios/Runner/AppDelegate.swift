@@ -5,6 +5,10 @@ import UIKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  // L5 Pigeon：强引用住 host 实例（对照 NetworkBridge 强引用 StreamHandler）。
+  // 它内部还持有反向的 DeviceEventFlutterApi，被回收就推不动电量事件了。
+  private var deviceInfoPigeonHost: DeviceInfoPigeonHost?
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -24,6 +28,79 @@ import UIKit
     NetworkBridge.register(messenger: engineBridge.applicationRegistrar.messenger())
     // 第四条：页面级混合——present 原生扫码页并回传结果。
     ScanBridge.register(messenger: engineBridge.applicationRegistrar.messenger())
+    // 第五条：L5 Pigeon——用【生成的】Setup 挂载，不再手写 channel 名 / codec。
+    // 对照上面 L1–L4 的 register：那些都是我们手写的 FlutterMethodChannel(name:)；
+    // 这里 channel 名（dev.flutter.pigeon.native_lab.*）由生成代码管理。
+    let messenger = engineBridge.applicationRegistrar.messenger()
+    let pigeonHost = DeviceInfoPigeonHost(binaryMessenger: messenger)
+    DeviceInfoHostApiSetup.setUp(binaryMessenger: messenger, api: pigeonHost)
+    deviceInfoPigeonHost = pigeonHost
+  }
+}
+
+/// L5 设备信息桥（原生侧，Pigeon 版）。对照 L1 的手写 DeviceInfoBridge：
+/// L1 我们手写 FlutterMethodChannel + setMethodCallHandler + 手拼返回字典；
+/// 这里【实现 Pigeon 生成的 DeviceInfoHostApi 协议】——方法签名、参数/返回类型
+/// 都由生成代码定死，少实现一个方法 / 类型不对 → 编译报错（手写通道做不到）。
+/// 继承 NSObject 是为了用 NotificationCenter 的 @objc selector 监听电量。
+final class DeviceInfoPigeonHost: NSObject, DeviceInfoHostApi {
+  // 反向推流用：持有【生成的】FlutterApi 调用端（对照 L3 的 sink，但这是强类型方法）。
+  private let flutterApi: DeviceEventFlutterApi
+  private var observing = false
+
+  init(binaryMessenger: FlutterBinaryMessenger) {
+    self.flutterApi = DeviceEventFlutterApi(binaryMessenger: binaryMessenger)
+    super.init()
+  }
+
+  // @async 契约 → 生成的是带 completion 的签名（对照 L1 handler 里的 result(...)）。
+  func getDeviceInfo(completion: @escaping (Result<DeviceInfoData, Error>) -> Void) {
+    let d = UIDevice.current
+    d.isBatteryMonitoringEnabled = true
+    // 模拟器电量恒为 -1；取不到就回 nil（契约里 batteryLevel 是可空的）。
+    let level: Int64? = d.batteryLevel < 0 ? nil : Int64(d.batteryLevel * 100)
+    // isPhysicalDevice：编译期区分模拟器 / 真机（Swift 官方写法）。
+    #if targetEnvironment(simulator)
+    let physical = false
+    #else
+    let physical = true
+    #endif
+    // 返回【生成的强类型 struct】，不是字典——对照 L1 的 result([...]) 手拼 Map。
+    completion(.success(DeviceInfoData(
+      model: d.model,
+      systemName: d.systemName,
+      systemVersion: d.systemVersion,
+      isPhysicalDevice: physical,
+      batteryLevel: level)))
+  }
+
+  func startBatteryUpdates() throws {
+    guard !observing else { return }
+    observing = true
+    UIDevice.current.isBatteryMonitoringEnabled = true
+    // 对照 L3：注册通知观察（≈ EventChannel 的 onListen）。电量值和充电状态各一个通知。
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(batteryChanged),
+      name: UIDevice.batteryLevelDidChangeNotification, object: nil)
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(batteryChanged),
+      name: UIDevice.batteryStateDidChangeNotification, object: nil)
+    batteryChanged() // 立即推一次当前值，别让 Dart 侧干等
+  }
+
+  func stopBatteryUpdates() throws {
+    observing = false
+    NotificationCenter.default.removeObserver(self) // ≈ EventChannel 的 onCancel
+  }
+
+  @objc private func batteryChanged() {
+    let d = UIDevice.current
+    let info = BatteryInfo(
+      level: d.batteryLevel < 0 ? -1 : Int64(d.batteryLevel * 100),
+      isCharging: d.batteryState == .charging || d.batteryState == .full)
+    // 通知回调在主线程，直接调；生成的 FlutterApi 帮我们编码 + 过 channel 推给 Dart。
+    // completion 里的错误一般忽略（Dart 侧没监听时会有 error，不影响）。
+    flutterApi.onBatteryChanged(info: info) { _ in }
   }
 }
 

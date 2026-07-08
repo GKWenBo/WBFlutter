@@ -4,6 +4,7 @@ import 'l1/l1_device_info_page.dart';
 import 'l2/l2_analytics_page.dart';
 import 'l3/l3_network_page.dart';
 import 'l4/l4_scan_page.dart';
+import 'l5/l5_pigeon_page.dart';
 
 /// 课程注册表：App 首页列表的数据源。
 /// 每课过关提交时手动翻状态；下一课开课时把它的 status 改成
@@ -41,14 +42,15 @@ final List<Lesson> lessonRegistry = [
     id: 'L4',
     title: '页面级混合 + 权限',
     scenario: 'Flutter 页跳原生扫码页，结果回传',
-    status: LessonStatus.inProgress,
+    status: LessonStatus.done,
     pageBuilder: (_) => const L4ScanPage(),
   ),
-  const Lesson(
+  Lesson(
     id: 'L5',
     title: 'Pigeon 类型安全生成',
     scenario: '手写 channel 魔法值重构为 Pigeon',
-    status: LessonStatus.locked,
+    status: LessonStatus.done,
+    pageBuilder: (_) => const L5PigeonPage(),
   ),
   const Lesson(
     id: 'L6',

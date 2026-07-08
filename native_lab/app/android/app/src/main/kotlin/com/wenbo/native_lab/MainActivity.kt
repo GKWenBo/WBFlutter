@@ -1,8 +1,10 @@
 package com.wenbo.native_lab
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Network
@@ -179,6 +181,73 @@ class MainActivity : FlutterFragmentActivity() {
                 }
                 else -> result.notImplemented()
             }
+        }
+
+        // L5：Pigeon 版设备信息桥。对照 iOS 的 DeviceInfoHostApiSetup.setUp——
+        // 这里 DeviceInfoHostApi.setUp(messenger, impl) 挂载【生成的】interface 实现，
+        // 不再手写 MethodChannel(name)。channel 名（dev.flutter.pigeon.native_lab.*）由生成代码管。
+        DeviceInfoHostApi.setUp(
+            flutterEngine.dartExecutor.binaryMessenger,
+            DeviceInfoPigeonHost(),
+        )
+    }
+
+    // ── L5 Pigeon 设备信息桥（原生侧对照）────────────────────────────────
+    // 对照 iOS 的 DeviceInfoPigeonHost：实现【生成的】DeviceInfoHostApi 接口，
+    // 少实现一个方法 / 类型不对就编译报错（手写 MethodChannel 做不到）。
+    // 反向推流持有生成的 DeviceEventFlutterApi（对照 iOS 同名类）。
+    private inner class DeviceInfoPigeonHost : DeviceInfoHostApi {
+        // 反向推流端：lazy 是因为要用到 flutterEngine 的 messenger（configureFlutterEngine 后才有）。
+        private val flutterApi: DeviceEventFlutterApi by lazy {
+            DeviceEventFlutterApi(flutterEngine!!.dartExecutor.binaryMessenger)
+        }
+        private var batteryReceiver: BroadcastReceiver? = null
+
+        // @async 契约 → 生成的是 callback((Result<T>)->Unit) 签名（对照 iOS 的 completion）。
+        override fun getDeviceInfo(callback: (Result<DeviceInfoData>) -> Unit) {
+            val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+            val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                .takeIf { it in 0..100 }?.toLong()
+            // 回【生成的强类型 data class】，不是 Map——对照 L1 的 mapOf(...) 手拼。
+            callback(
+                Result.success(
+                    DeviceInfoData(
+                        model = Build.MODEL,
+                        systemName = "Android",
+                        systemVersion = Build.VERSION.RELEASE,
+                        // Build.FINGERPRINT 含 "generic"/"emulator" 即模拟器（够教学用）。
+                        isPhysicalDevice = !Build.FINGERPRINT.contains("generic"),
+                        batteryLevel = level,
+                    )
+                )
+            )
+        }
+
+        override fun startBatteryUpdates() {
+            if (batteryReceiver != null) return
+            // 对照 iOS 的通知观察 / L3 的 NetworkCallback：注册电量广播接收器（≈ onListen）。
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    intent ?: return
+                    val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                    val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                    val pct = if (level >= 0 && scale > 0) level * 100 / scale else -1
+                    val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                    val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                        status == BatteryManager.BATTERY_STATUS_FULL
+                    val info = BatteryInfo(level = pct.toLong(), isCharging = charging)
+                    // 广播回调已在主线程，但统一 runOnUiThread 更稳（对照 L3 回主线程投递）。
+                    runOnUiThread { flutterApi.onBatteryChanged(info) {} }
+                }
+            }
+            // registerReceiver ACTION_BATTERY_CHANGED 是"粘性广播"：注册即回一次当前电量。
+            registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            batteryReceiver = receiver
+        }
+
+        override fun stopBatteryUpdates() {
+            batteryReceiver?.let { unregisterReceiver(it) } // ≈ onCancel
+            batteryReceiver = null
         }
     }
 
