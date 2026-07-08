@@ -3,6 +3,7 @@ import 'l0/l0_anatomy_page.dart';
 import 'l1/l1_device_info_page.dart';
 import 'l2/l2_analytics_page.dart';
 import 'l3/l3_network_page.dart';
+import 'l4/l4_scan_page.dart';
 
 /// 课程注册表：App 首页列表的数据源。
 /// 每课过关提交时手动翻状态；下一课开课时把它的 status 改成
@@ -36,11 +37,12 @@ final List<Lesson> lessonRegistry = [
     status: LessonStatus.done,
     pageBuilder: (_) => const L3NetworkPage(),
   ),
-  const Lesson(
+  Lesson(
     id: 'L4',
     title: '页面级混合 + 权限',
     scenario: 'Flutter 页跳原生扫码页，结果回传',
-    status: LessonStatus.locked,
+    status: LessonStatus.inProgress,
+    pageBuilder: (_) => const L4ScanPage(),
   ),
   const Lesson(
     id: 'L5',

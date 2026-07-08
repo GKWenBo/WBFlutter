@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- L4：扫码要相机权限（对照 iOS 的 Info.plist NSCameraUsageDescription）。
+         声明在这里 + 运行时 requestPermission 双管：Android 6+ 危险权限要运行时再问一次。 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:label="NativeLab 原生实验室"
         android:name="${applicationName}"
@@ -25,6 +29,11 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- L4：原生扫码页。无 intent-filter → exported 默认 false，内部显式 Intent 启动。
+             对照 iOS：iOS 直接 present VC 无需"注册"，Android 的 Activity 必须在此登记。 -->
+        <activity
+            android:name=".ScannerActivity"
+            android:exported="false" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

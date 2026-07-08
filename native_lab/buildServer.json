@@ -1,0 +1,19 @@
+{
+	"name": "xcode build server",
+	"version": "1.3.0",
+	"bspVersion": "2.2.0",
+	"languages": [
+		"c",
+		"cpp",
+		"objective-c",
+		"objective-cpp",
+		"swift"
+	],
+	"argv": [
+		"/opt/homebrew/bin/xcode-build-server"
+	],
+	"workspace": "/Users/wenbo/Desktop/WBFlutter/native_lab/app/ios/Runner.xcworkspace",
+	"build_root": "/Users/wenbo/Library/Developer/Xcode/DerivedData/Runner-baauktjsfdnplvecjlnjbhiinmlo",
+	"scheme": "Runner",
+	"kind": "xcode"
+}

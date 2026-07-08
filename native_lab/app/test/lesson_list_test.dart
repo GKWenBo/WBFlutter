@@ -16,10 +16,10 @@ void main() {
 
   testWidgets('点击锁定课时只弹提示，不跳转', (tester) async {
     await tester.pumpWidget(const NativeLabApp());
-    // L3 已解锁，锁定样本换成 L4。
-    await tester.tap(find.text('页面级混合 + 权限'));
+    // L4 已解锁，锁定样本换成 L5。
+    await tester.tap(find.text('Pigeon 类型安全生成'));
     await tester.pump(); // 推一帧，让 SnackBar 开始入场
-    expect(find.text('先完成前面的课时，再解锁 L4'), findsOneWidget);
+    expect(find.text('先完成前面的课时，再解锁 L5'), findsOneWidget);
   });
 
   testWidgets('点击 L0 进入原生工程解剖页', (tester) async {

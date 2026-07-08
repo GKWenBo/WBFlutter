@@ -1,16 +1,41 @@
 package com.wenbo.native_lab
 
+import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.os.BatteryManager
 import android.os.Build
-import io.flutter.embedding.android.FlutterActivity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
+    // ── L4 扫码：页面级混合 + 相机权限（对照 iOS 的 ScanBridge）──────────
+    // 结果延迟到用户在原生页操作后才有，先把 Result 暂存这里（对照 iOS 的 pendingResult）。
+    private var pendingResult: MethodChannel.Result? = null
+    private var pendingHint: String? = null // L4 课后练习：打开原生页时携带的提示语
+
+    // ActivityResultLauncher 必须在 Activity 到 STARTED 之前注册，所以放成字段初始化
+    // （构造/onCreate 期就注册）。⚠️ 这也是为什么 MainActivity 要继承 FlutterFragmentActivity——
+    // 普通 FlutterActivity(=android.app.Activity) 没有 registerForActivityResult。
+    private val cameraPermLauncher: ActivityResultLauncher<String> =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) launchScanner() else finishScan(null, denied = true)
+        }
+    private val scanLauncher: ActivityResultLauncher<Intent> =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+            // RESULT_OK 且带 code → 扫到；否则（返回键/取消）当作取消。
+            val code = if (res.resultCode == RESULT_OK) res.data?.getStringExtra("code") else null
+            finishScan(code, denied = false)
+        }
+
     // 对照 iOS：configureFlutterEngine ≈ didInitializeImplicitFlutterEngine，
     // 都是"引擎就绪，来挂你的 channel"的回调。
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -125,5 +150,55 @@ class MainActivity : FlutterActivity() {
                 callback = null
             }
         })
+
+        // L4：第四条 channel（扫码）。页面级混合——启动原生 Activity 接管整屏，
+        // 扫完 setResult/finish 回传。对照 iOS：iOS present VC + 暂存 FlutterResult，
+        // Android launch Activity + 暂存 Result；两端都因"结果延迟到达"而暂存。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.wenbo.native_lab/scanner" // 三端逐字符一致
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "scan" -> {
+                    if (pendingResult != null) {
+                        // 单次在飞行守卫：上一次没回就拒（Result 只能调一次）。
+                        result.error("ALREADY_SCANNING", "已在扫码中", null)
+                    } else {
+                        pendingResult = result
+                        // L4 课后练习：取出打开原生页时携带的 hint（Map 入参，编解码同 L2），暂存待用。
+                        pendingHint = (call.arguments as? Map<*, *>)?.get("hint") as? String
+                        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                            == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            launchScanner()
+                        } else {
+                            // 没权限先申请（对照 iOS 的 requestAccess）；授权回调里再 launchScanner。
+                            cameraPermLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    // 打开原生扫码页 = 启动另一个 Activity（对照 iOS present 一个 VC）。
+    private fun launchScanner() {
+        // 打开原生页时把 hint 作为 Intent extra 带下去（对照 iOS 构造 VC 时传 hint）。
+        scanLauncher.launch(
+            Intent(this, ScannerActivity::class.java).putExtra("hint", pendingHint)
+        )
+    }
+
+    // Result 只能调一次：统一从这里回 Dart 并清空 pending（对照 iOS 的 finish(with:)）。
+    private fun finishScan(code: String?, denied: Boolean) {
+        val result = pendingResult ?: return
+        pendingResult = null
+        pendingHint = null
+        if (denied) {
+            result.error("PERMISSION_DENIED", "相机权限被拒", null)
+        } else {
+            result.success(code) // code=String → ScanSuccess；null → ScanCancelled
+        }
     }
 }

@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import Network
 import UIKit
@@ -21,6 +22,8 @@ import UIKit
     AnalyticsBridge.register(messenger: engineBridge.applicationRegistrar.messenger())
     // 第三条：EventChannel（网络状态推流）。
     NetworkBridge.register(messenger: engineBridge.applicationRegistrar.messenger())
+    // 第四条：页面级混合——present 原生扫码页并回传结果。
+    ScanBridge.register(messenger: engineBridge.applicationRegistrar.messenger())
   }
 }
 
@@ -176,5 +179,150 @@ final class NetworkStatusStreamHandler: NSObject, FlutterStreamHandler {
     monitor?.cancel()
     monitor = nil
     return nil
+  }
+}
+
+/// L4 扫码桥（原生侧）。页面级混合：present 一个原生 VC 接管整屏，
+/// 把 FlutterResult 暂存，等用户扫完/取消再回。
+/// ★ 与 L1/L2 的关键差异：result 不在 handler 里立刻回，而是"延迟"到用户操作后。
+///   FlutterResult 只能调用一次——所以要单次在飞行守卫 + 回完置空。
+enum ScanBridge {
+  // 暂存那次延迟的 result。present 出去后 handler 就 return 了，真正的回值靠它。
+  private static var pendingResult: FlutterResult?
+
+  static func register(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "com.wenbo.native_lab/scanner", // 三端逐字符一致
+      binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "scan":
+        // L4 课后练习：取出打开原生页时携带的入参 hint（Map 入参，编解码同 L2）。
+        let hint = (call.arguments as? [String: Any])?["hint"] as? String
+        handleScan(hint: hint, result: result)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func handleScan(hint: String?, result: @escaping FlutterResult) {
+    // 上一次扫码还没回就直接拒，避免 pendingResult 被覆盖（result 只能调一次）。
+    if pendingResult != nil {
+      result(FlutterError(code: "ALREADY_SCANNING", message: "已在扫码中", details: nil))
+      return
+    }
+    // 相机权限：真机扫码要开 AVCaptureSession，先拿权限。本课扫码页是模拟的，
+    // 但权限这条线走真实流程（这就是本课的"运行时权限"知识点）。
+    switch AVCaptureDevice.authorizationStatus(for: .video) {
+    case .authorized:
+      presentScanner(hint: hint, result: result)
+    case .notDetermined:
+      // 首次：弹系统授权框。回调在任意线程，present 必须切回主线程。
+      AVCaptureDevice.requestAccess(for: .video) { granted in
+        DispatchQueue.main.async {
+          if granted {
+            presentScanner(hint: hint, result: result)
+          } else {
+            result(FlutterError(code: "PERMISSION_DENIED", message: "相机权限被拒", details: nil))
+          }
+        }
+      }
+    default: // .denied / .restricted：用户之前拒过或被家长控制限制
+      result(FlutterError(code: "PERMISSION_DENIED", message: "相机权限被拒", details: nil))
+    }
+  }
+
+  private static func presentScanner(hint: String?, result: @escaping FlutterResult) {
+    guard let top = topViewController() else {
+      result(FlutterError(code: "NO_UI", message: "找不到可 present 的控制器", details: nil))
+      return
+    }
+    pendingResult = result // 现在开始"延迟回值"，直到扫码页 dismiss
+    let scanner = MockScannerViewController(hint: hint) { code in finish(with: code) }
+    let nav = UINavigationController(rootViewController: scanner)
+    nav.modalPresentationStyle = .fullScreen
+    top.present(nav, animated: true)
+  }
+
+  // 回传出口：扫到 code(String) → Dart 得字符串（ScanSuccess）；取消(nil) → Dart 得 null（ScanCancelled）。
+  private static func finish(with code: String?) {
+    pendingResult?(code)
+    pendingResult = nil // 置空，让下一次 scan 能进
+  }
+
+  // Flutter + Scene 世界里"从哪 present"：取前台 windowScene 的 rootVC 再顺到最顶层。
+  private static func topViewController() -> UIViewController? {
+    let scene = UIApplication.shared.connectedScenes
+      .first { $0.activationState == .foregroundActive } as? UIWindowScene
+    var top = scene?.keyWindow?.rootViewController
+    while let presented = top?.presentedViewController {
+      top = presented
+    }
+    return top
+  }
+}
+
+/// 模拟扫码页（原生 UIViewController）。真机上这里是 AVCaptureSession 预览 +
+/// AVCaptureMetadataOutput 识别二维码；模拟器没相机，用预置按钮 + 输入框替代"扫到"，
+/// 但 present/dismiss/回传这条页面级混合主线完全真实。
+/// 注意 dismiss 的 completion 里才调 onFinish——先收掉原生页，再把结果回给 Flutter。
+final class MockScannerViewController: UIViewController {
+  private let onFinish: (String?) -> Void
+  private let hint: String? // L4 课后练习：Flutter 打开原生页时带下来的提示语，用作标题
+  private let field = UITextField()
+
+  init(hint: String?, onFinish: @escaping (String?) -> Void) {
+    self.hint = hint
+    self.onFinish = onFinish
+    super.init(nibName: nil, bundle: nil)
+  }
+
+  required init?(coder: NSCoder) { fatalError("init(coder:) 未使用") }
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    view.backgroundColor = .systemBackground
+    title = hint ?? "模拟扫码（本机无相机）"
+    navigationItem.leftBarButtonItem = UIBarButtonItem(
+      barButtonSystemItem: .cancel, target: self, action: #selector(cancelTapped))
+
+    field.placeholder = "手动输入一个码"
+    field.borderStyle = .roundedRect
+
+    let preset1 = makeButton("扫到 SKU-10086") { [weak self] in self?.scanned("SKU-10086") }
+    let preset2 = makeButton("扫到 COUPON-8") { [weak self] in self?.scanned("COUPON-8") }
+    let confirm = makeButton("确认输入的码") { [weak self] in
+      guard let self else { return }
+      let text = self.field.text ?? ""
+      self.scanned(text.isEmpty ? "EMPTY" : text)
+    }
+
+    let stack = UIStackView(arrangedSubviews: [field, preset1, preset2, confirm])
+    stack.axis = .vertical
+    stack.spacing = 16
+    stack.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(stack)
+    NSLayoutConstraint.activate([
+      stack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+      stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
+      stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32),
+    ])
+  }
+
+  @objc private func cancelTapped() {
+    dismiss(animated: true) { [onFinish] in onFinish(nil) } // 取消 = nil
+  }
+
+  private func scanned(_ code: String) {
+    dismiss(animated: true) { [onFinish] in onFinish(code) } // 扫到 = code
+  }
+
+  private func makeButton(_ title: String, _ action: @escaping () -> Void) -> UIButton {
+    let b = UIButton(type: .system)
+    b.setTitle(title, for: .normal)
+    b.titleLabel?.font = .systemFont(ofSize: 18, weight: .medium)
+    b.addAction(UIAction { _ in action() }, for: .touchUpInside)
+    return b
   }
 }
