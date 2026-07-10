@@ -44,6 +44,17 @@ import UIKit
 /// 都由生成代码定死，少实现一个方法 / 类型不对 → 编译报错（手写通道做不到）。
 /// 继承 NSObject 是为了用 NotificationCenter 的 @objc selector 监听电量。
 final class DeviceInfoPigeonHost: NSObject, DeviceInfoHostApi {
+    func getBatteryInfo(completion: @escaping (Result<BatteryInfo, any Error>) -> Void) {
+        let d = UIDevice.current
+        // ⚠️ 必须先开电量监控，否则 batteryLevel 恒 -1、batteryState 为 .unknown。
+        // getDeviceInfo 里有这句、这里当初漏了——真机上先点"读一次电量"就会永远显示未知。
+        d.isBatteryMonitoringEnabled = true
+        let info = BatteryInfo(
+          level: d.batteryLevel < 0 ? -1 : Int64(d.batteryLevel * 100),
+          isCharging: d.batteryState == .charging || d.batteryState == .full)
+        completion(.success(info))
+    }
+    
   // 反向推流用：持有【生成的】FlutterApi 调用端（对照 L3 的 sink，但这是强类型方法）。
   private let flutterApi: DeviceEventFlutterApi
   private var observing = false

@@ -19,6 +19,7 @@ class _L5PigeonPageState extends State<L5PigeonPage> {
   late final DeviceInfoPigeonBridge _bridge = DeviceInfoPigeonBridge();
 
   DeviceInfoData? _info; // getDeviceInfo 的结果（强类型，不是 Map）
+  BatteryInfo? _batteryInfo;
   Object? _error;
   bool _watching = false; // 是否已开电量订阅
 
@@ -36,6 +37,18 @@ class _L5PigeonPageState extends State<L5PigeonPage> {
       final info = await _bridge.getDeviceInfo();
       setState(() {
         _info = info;
+        _error = null;
+      });
+    } catch (e) {
+      setState(() => _error = e);
+    }
+  }
+
+  Future<void> _readBatteryInfo() async {
+    try {
+      final info = await _bridge.getBatteryInfo();
+      setState(() {
+        _batteryInfo = info;
         _error = null;
       });
     } catch (e) {
@@ -91,6 +104,12 @@ class _L5PigeonPageState extends State<L5PigeonPage> {
 
           const Divider(height: 40),
 
+          FilledButton.icon(onPressed: _readBatteryInfo,  icon: const Icon(Icons.phone_iphone), label: const Text("读取一次电量")),
+          if (_batteryInfo != null) 
+            _BatteryCard(info: _batteryInfo!),
+
+          const Divider(height: 40),
+
           // ── 反向 FlutterApi：原生推电量给 Flutter（对照 L3 EventChannel）──
           SwitchListTile(
             title: const Text('电量订阅（反向 FlutterApi）'),
@@ -101,6 +120,9 @@ class _L5PigeonPageState extends State<L5PigeonPage> {
           if (_watching)
             StreamBuilder<BatteryInfo>(
               stream: _bridge.batteryStream,
+              // 兜底：原生在 startBatteryUpdates 里立即推的第一条，可能早于本 StreamBuilder
+              // 订阅而被广播流丢弃。用 bridge 缓存的 latestBattery 作初值，避免永远空白。
+              initialData: _bridge.latestBattery,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Padding(

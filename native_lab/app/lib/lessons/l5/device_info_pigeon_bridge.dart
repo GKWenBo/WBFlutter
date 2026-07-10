@@ -24,8 +24,16 @@ class DeviceInfoPigeonBridge implements DeviceEventFlutterApi {
   final StreamController<BatteryInfo> _battery =
       StreamController<BatteryInfo>.broadcast();
 
+  // 最近一条电量：broadcast 流"没人听就丢事件、且不重放"，而原生在 startBatteryUpdates
+  // 里会【立即】推一次——那次推送可能早于 StreamBuilder 订阅而被丢。缓存住它，
+  // 让晚订阅的一方靠 initialData 兜底（≈ 给广播流补一个"最新值重放"）。
+  BatteryInfo? _latest;
+  BatteryInfo? get latestBattery => _latest;
+
   /// Flutter→原生：取设备信息（生成方法，编译期类型安全）。
   Future<DeviceInfoData> getDeviceInfo() => _host.getDeviceInfo();
+
+  Future<BatteryInfo> getBatteryInfo() => _host.getBatteryInfo();
 
   /// 开/停电量订阅（对照 L3 onListen/onCancel，但走普通方法调用）。
   Future<void> startBatteryUpdates() => _host.startBatteryUpdates();
@@ -35,8 +43,12 @@ class DeviceInfoPigeonBridge implements DeviceEventFlutterApi {
   Stream<BatteryInfo> get batteryStream => _battery.stream;
 
   /// 生成接口的回调实现——原生每调一次 onBatteryChanged，就把强类型对象转进流里。
+  /// 先缓存再入流：即便此刻无人监听（事件被广播流丢弃），_latest 仍留住这条值。
   @override
-  void onBatteryChanged(BatteryInfo info) => _battery.add(info);
+  void onBatteryChanged(BatteryInfo info) {
+    _latest = info;
+    _battery.add(info);
+  }
 
   /// 页面 dispose 时调用：摘掉反向接收端 + 关流（对照 L3 的 onCancel 清理）。
   void dispose() {

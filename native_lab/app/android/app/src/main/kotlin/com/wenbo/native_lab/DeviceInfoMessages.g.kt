@@ -340,6 +340,7 @@ private open class DeviceInfoMessagesPigeonCodec : StandardMessageCodec() {
 interface DeviceInfoHostApi {
   /** @async：原生实现端拿到一个 completion/callback，可异步完成（演示 Pigeon 的异步契约）。 */
   fun getDeviceInfo(callback: (Result<DeviceInfoData>) -> Unit)
+  fun getBatteryInfo(callback: (Result<BatteryInfo>) -> Unit)
   /**
    * 开始/停止电量订阅——对照 L3 EventChannel 的 onListen/onCancel，
    * 但这里是普通方法调用，真正的推流走下面的 FlutterApi。
@@ -361,6 +362,24 @@ interface DeviceInfoHostApi {
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.getDeviceInfo{ result: Result<DeviceInfoData> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(DeviceInfoMessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(DeviceInfoMessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.native_lab.DeviceInfoHostApi.getBatteryInfo$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getBatteryInfo{ result: Result<BatteryInfo> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(DeviceInfoMessagesPigeonUtils.wrapError(error))

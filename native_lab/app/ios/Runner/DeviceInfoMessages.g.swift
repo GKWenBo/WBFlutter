@@ -339,6 +339,7 @@ class DeviceInfoMessagesPigeonCodec: FlutterStandardMessageCodec, @unchecked Sen
 protocol DeviceInfoHostApi {
   /// @async：原生实现端拿到一个 completion/callback，可异步完成（演示 Pigeon 的异步契约）。
   func getDeviceInfo(completion: @escaping (Result<DeviceInfoData, Error>) -> Void)
+  func getBatteryInfo(completion: @escaping (Result<BatteryInfo, Error>) -> Void)
   /// 开始/停止电量订阅——对照 L3 EventChannel 的 onListen/onCancel，
   /// 但这里是普通方法调用，真正的推流走下面的 FlutterApi。
   func startBatteryUpdates() throws
@@ -366,6 +367,21 @@ class DeviceInfoHostApiSetup {
       }
     } else {
       getDeviceInfoChannel.setMessageHandler(nil)
+    }
+    let getBatteryInfoChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.native_lab.DeviceInfoHostApi.getBatteryInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getBatteryInfoChannel.setMessageHandler { _, reply in
+        api.getBatteryInfo { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getBatteryInfoChannel.setMessageHandler(nil)
     }
     /// 开始/停止电量订阅——对照 L3 EventChannel 的 onListen/onCancel，
     /// 但这里是普通方法调用，真正的推流走下面的 FlutterApi。

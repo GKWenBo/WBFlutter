@@ -12,6 +12,7 @@ import android.os.BatteryManager
 import android.os.Build
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -128,8 +129,9 @@ class MainActivity : FlutterFragmentActivity() {
         ).setStreamHandler(object : EventChannel.StreamHandler {
             private var callback: ConnectivityManager.NetworkCallback? = null
 
+            @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
             override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
-                val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
                 val cb = object : ConnectivityManager.NetworkCallback() {
                     // 回调在非主线程，事件要 runOnUiThread 投递（同 iOS 回主线程）。
                     // L3 课后练习：推 Map{'type','level'} 而非裸字符串（level 占位满格 3）,
@@ -221,6 +223,27 @@ class MainActivity : FlutterFragmentActivity() {
                     )
                 )
             )
+        }
+
+        override fun getBatteryInfo(callback: (Result<BatteryInfo>) -> Unit) {
+            // ⚠️ 一次性读取，不要注册长期监听。原写法 new 了个 receiver 却从没
+            // registerReceiver → onReceive 永不触发 → callback 永不回 → Dart 的
+            // getBatteryInfo() Future 永久挂起（点"读一次电量"一直转圈）。
+            // 正解：ACTION_BATTERY_CHANGED 是"粘性广播"，registerReceiver 传 null 接收器
+            // 会【立刻】返回当前那条粘性 Intent——拿到快照即可，无需注册、无需 unregister。
+            // 对照 startBatteryUpdates 才是注册【持续】监听（≈ onListen）。
+            val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            if (intent == null) {
+                callback(Result.success(BatteryInfo(level = -1, isCharging = false)))
+                return
+            }
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+            val pct = if (level >= 0 && scale > 0) level * 100 / scale else -1
+            val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+            val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                status == BatteryManager.BATTERY_STATUS_FULL
+            callback(Result.success(BatteryInfo(level = pct.toLong(), isCharging = charging)))
         }
 
         override fun startBatteryUpdates() {

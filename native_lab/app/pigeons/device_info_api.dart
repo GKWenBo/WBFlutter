@@ -58,6 +58,9 @@ abstract class DeviceInfoHostApi {
   @async
   DeviceInfoData getDeviceInfo();
 
+  @async
+  BatteryInfo getBatteryInfo();
+
   /// 开始/停止电量订阅——对照 L3 EventChannel 的 onListen/onCancel，
   /// 但这里是普通方法调用，真正的推流走下面的 FlutterApi。
   void startBatteryUpdates();
