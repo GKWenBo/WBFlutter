@@ -2,6 +2,7 @@
 // 这里先放一个最小冒烟测试：App 能正常构建，且底部 4 个 Tab 标签都在。
 // （M11 会专门讲 unit / widget / integration 三层测试。）
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -57,6 +58,12 @@ void main() {
   });
 
   testWidgets('App 启动后底部 4 个 Tab 都存在', (WidgetTester tester) async {
+    // M12：Tab 标签现在是本地化的。测试环境默认语言是 en（会渲染成 Home/Category…），
+    // 这里强制把设备语言设成中文，让下面的中文断言成立——
+    // ≈ XCUITest 里用 launchArguments 传 -AppleLanguages (zh-Hans) 测中文界面。
+    tester.platformDispatcher.localesTestValue = const [Locale('zh')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
     await tester.pumpWidget(
       ProviderScope(
         // 用 overrideWithValue 把真实 Repository 换成假的——

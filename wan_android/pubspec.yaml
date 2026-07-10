@@ -43,6 +43,12 @@ dependencies:
   shared_preferences: ^2.5.5
   flutter_secure_storage: ^10.3.1
 
+  # M12 国际化：flutter_localizations 是 SDK 自带包（走 sdk: flutter）；
+  # intl 提供 ICU 消息格式/复数/日期本地化，版本交给 flutter 统一锁定。
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -72,6 +78,11 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # M12 国际化：开启 gen-l10n 代码生成。
+  # 构建时会读 l10n.yaml + lib/l10n/*.arb，生成 AppLocalizations 类
+  # （≈ Xcode 从 .strings/String Catalog 生成的本地化访问代码，但这里是我们自己配的）。
+  generate: true
 
   # To add assets to your application, add an assets section, like this:
   # assets:

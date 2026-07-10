@@ -1,0 +1,7 @@
+# M12 国际化配置（gen-l10n 读它来生成 AppLocalizations）。
+# ≈ 你 iOS 里 String Catalog / .strings 的"从哪读、生成到哪、类叫什么"的约定。
+arb-dir: lib/l10n                       # 翻译源文件（*.arb）放这
+template-arb-file: app_en.arb           # 以英文为"模板"：键的定义与占位符元数据以它为准
+output-localization-file: app_localizations.dart  # 生成的入口文件名
+output-class: AppLocalizations          # 生成的类名：AppLocalizations.of(context)
+nullable-getter: false                  # of(context) 返回非空（配了 delegate 后一定有值），少写一堆 !

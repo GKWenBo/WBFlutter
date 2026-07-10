@@ -1,0 +1,11 @@
+{
+  "@@locale": "zh",
+  "navHome": "首页",
+  "navCategory": "分类",
+  "navCart": "购物车",
+  "navProfile": "我的",
+
+  "cartItemCount": "{count, plural, =0{购物车是空的} other{购物车有 {count} 件商品}}",
+
+  "currentEnv": "当前环境：{name}"
+}

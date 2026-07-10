@@ -1,0 +1,23 @@
+{
+  "@@locale": "en",
+  "navHome": "Home",
+  "@navHome": { "description": "Bottom tab: products home" },
+  "navCategory": "Category",
+  "@navCategory": { "description": "Bottom tab: categories" },
+  "navCart": "Cart",
+  "@navCart": { "description": "Bottom tab: shopping cart" },
+  "navProfile": "Profile",
+  "@navProfile": { "description": "Bottom tab: user profile" },
+
+  "cartItemCount": "{count, plural, =0{Cart is empty} =1{{count} item in cart} other{{count} items in cart}}",
+  "@cartItemCount": {
+    "description": "Cart summary with ICU plural",
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "currentEnv": "Environment: {name}",
+  "@currentEnv": {
+    "description": "Shows the current build flavor on the profile page",
+    "placeholders": { "name": { "type": "String" } }
+  }
+}

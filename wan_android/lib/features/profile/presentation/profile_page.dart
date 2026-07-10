@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_env.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../cart/presentation/providers/cart_providers.dart';
 import '../../favorites/presentation/providers/favorites_providers.dart';
 import '../../orders/presentation/providers/orders_providers.dart';
 
@@ -71,6 +74,8 @@ class ProfilePage extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               _buildMenu(context, ref),
+              const SizedBox(height: 24),
+              _buildFooter(context, ref),
             ],
           );
         },
@@ -106,6 +111,26 @@ class ProfilePage extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// 页脚：展示当前环境 + 购物车件数。
+  /// 用来演示 M12 两个国际化知识点：
+  ///   - 带占位符的文案 currentEnv('{name}')：把变量拼进翻译，≈ iOS 的 String(format:)。
+  ///   - ICU 复数 cartItemCount('{count, plural, ...}')：0/1/多 自动选不同措辞，
+  ///     ≈ iOS 的 .stringsdict——但写在同一个 arb 键里，不用单独文件。
+  Widget _buildFooter(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final cartCount = ref.watch(cartTotalCountProvider);
+    final grey = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(color: Colors.grey);
+    return Column(
+      children: [
+        Text(l10n.currentEnv(AppEnv.current.flavor.name), style: grey),
+        const SizedBox(height: 4),
+        Text(l10n.cartItemCount(cartCount), style: grey),
+      ],
     );
   }
 

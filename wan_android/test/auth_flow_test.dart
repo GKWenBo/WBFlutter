@@ -104,6 +104,11 @@ void main() {
   testWidgets('未登录点"我的"被拦到登录页；登录成功看到用户信息；登出后再次被拦截', (
     tester,
   ) async {
+    // M12：底部 Tab 标签已国际化，测试默认 en 会渲染成英文。
+    // 强制中文，让下面按"我的"文案定位 Tab 仍成立。
+    tester.platformDispatcher.localesTestValue = const [Locale('zh')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
