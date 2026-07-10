@@ -19,6 +19,6 @@
 | M8 | 登录与鉴权（Form/secure storage/redirect）⭐ | 待补 |
 | M9 | 收藏 + 我的 + 离线缓存 | 待补 |
 | M10 | 下单结算（mock 闭环）| [M10-下单结算.md](M10-下单结算.md) |
-| M11 | 测试 | ⬜ |
+| M11 | 测试（mocktail/golden/integration_test）| [M11-测试.md](M11-测试.md) |
 | M12 | 发布 + 平台集成 ⭐ | ⬜ |
 | M13 | 性能与收尾 | ⬜ |

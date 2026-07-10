@@ -46,6 +46,10 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # 端到端测试框架（≈ XCUITest）。它是 Flutter SDK 自带的包，
+  # 所以走 `sdk: flutter` 声明，而不是 pub.dev 版本号。
+  integration_test:
+    sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -56,6 +60,7 @@ dev_dependencies:
   json_serializable: ^6.14.0
   build_runner: ^2.15.0
   riverpod_generator: ^4.0.4
+  mocktail: ^1.0.5
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
