@@ -199,11 +199,3 @@ blocTest<AuthBloc, AuthState>(
 CI 拆分策略：单元测试 + Widget 测试用 Linux runner 跑（快、便宜），只有真正需要 iOS 模拟器的集成测试才上 macOS runner——因为 macOS 分钟消耗是 Linux 的 10 倍，这点在控制 CI 成本上很实际。
 
 Golden 更新走 PR 门禁模式：PR 分支上 CI 只报告 diff、不自动更新基准图，合并到 main 后才自动更新提交，防止意外的截图漂移。
-
-------
-
-## 下一步建议
-
-结合你 "on the horizon" 列表里已经排的 **drift + Riverpod 响应式集成**，一个很自然的延伸方向是：**如何给 Riverpod + drift 的响应式查询链路写单元测试**（`NativeDatabase.memory()` + `ProviderContainer` 组合，验证 Stream 更新触发 UI 重建）——这个我可以下次单独展开，包含具体的 iOS Core Data + Combine 测试对照。
-
-要不要现在就深入某一层，比如你的 Dio 拦截器栈的完整测试用例设计？
