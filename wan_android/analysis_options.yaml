@@ -24,5 +24,18 @@ linter:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
 
+    # ---- M13 收尾：在 flutter_lints 之上再收紧一批「性能 + 质量」规则 ----
+    # 这些多数能被 `dart fix --apply` 自动修，属于"零成本白捡"的工程化收益。
+    # 类比 iOS：≈ 打开 SwiftLint 的一组 opt-in 规则 / Xcode 更严的 warning 级别。
+    prefer_const_constructors: true # 能 const 的构造尽量 const（跳过重建，最关键的一条）
+    prefer_const_constructors_in_immutables: true # 不可变 Widget 的构造标 const
+    prefer_const_declarations: true # 编译期常量用 const 而非 final
+    prefer_const_literals_to_create_immutables: true # const 的 [] / {} 字面量
+    prefer_final_locals: true # 局部变量不重新赋值就用 final（利于编译器优化 + 可读性）
+    # 注：avoid_redundant_argument_values 故意不开——本教学项目常显式写出 skip: 0 / limit: 20
+    # 这类"和默认值相同"的参数来讲清语义，规则会逼着删掉，与讲解目的冲突。选规则要看项目诉求。
+    unnecessary_parenthesis: true # 去掉多余括号
+    use_super_parameters: true # 构造透传参数用 super. 简写
+
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

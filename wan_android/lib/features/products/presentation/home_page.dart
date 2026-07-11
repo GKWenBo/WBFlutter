@@ -117,6 +117,10 @@ class _HomePageState extends ConsumerState<HomePage> {
           crossAxisSpacing: 12,
           childAspectRatio: 0.72,
         ),
+        // M13 反过度优化提示：SliverChildBuilderDelegate 默认 addRepaintBoundaries: true，
+        // 已经自动给每个格子套了 RepaintBoundary（同理 ListView.builder/GridView.builder）。
+        // 所以这里**不需要**再手动包一层——重复包只会白增图层、适得其反。
+        // RepaintBoundary 要手动加的场景是"没走这些 builder 的、又频繁自绘的独立区域"（如上面的 HomeBanner）。
         delegate: SliverChildBuilderDelegate((context, i) {
           final p = products[i];
           return ProductCard(

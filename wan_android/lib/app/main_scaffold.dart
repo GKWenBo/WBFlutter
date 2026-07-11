@@ -19,6 +19,15 @@ class MainScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // 派生 provider：购物车总件数变化时，这里自动重建、角标数字跟着变。
+    //
+    // M13 收窄重建说明：这里 watch 的是【派生出 int 的 cartTotalCountProvider】，
+    // 而不是整包 cartProvider。Riverpod 只在派生值按 == 真的变了才通知——
+    // 所以「改某行数量但总件数不变」「结算页填地址/备注」都不会惊动这个角标。
+    // 效果等价于 ref.watch(cartProvider.select((c) => 总件数))，但派生 provider 更优：
+    //   ① 计算结果被缓存，多处 watch（这里 + 我的页）只算一次；
+    //   ② 逻辑收在一处，不必在每个 watch 点重写 fold。
+    // 什么时候才用 .select？当你只想订阅「某个已有对象的一个字段」、又不值得为它单开一个
+    // provider 时——比如 ref.watch(userProvider.select((u) => u.name))。
     final cartCount = ref.watch(cartTotalCountProvider);
     // M12：取当前语言的文案。of(context) 从最近的 Localizations 里拿（app.dart 已装配 delegate）。
     // ≈ iOS 的 NSLocalizedString，但类型安全：拼错 key 编译期就报错，不会静默返回原字符串。
