@@ -35,6 +35,14 @@ import UIKit
     let pigeonHost = DeviceInfoPigeonHost(binaryMessenger: messenger)
     DeviceInfoHostApiSetup.setUp(binaryMessenger: messenger, api: pigeonHost)
     deviceInfoPigeonHost = pigeonHost
+
+    // 第六条：L6 PlatformView——注册【视图工厂】（不是 channel）。
+    // registrar.register(factory, withId:) 把 viewType 和工厂绑定，
+    // Dart 侧 UiKitView(viewType:) 就能按名产出 MKMapView 实例。
+    let l6Registrar = engineBridge.applicationRegistrar
+    l6Registrar.register(
+      MapViewFactory(messenger: l6Registrar.messenger()),
+      withId: "com.wenbo.native_lab/native_view")
   }
 }
 
