@@ -5,6 +5,7 @@ import 'l2/l2_analytics_page.dart';
 import 'l3/l3_network_page.dart';
 import 'l4/l4_scan_page.dart';
 import 'l5/l5_pigeon_page.dart';
+import 'l6/l6_platform_view_page.dart';
 
 /// 课程注册表：App 首页列表的数据源。
 /// 每课过关提交时手动翻状态；下一课开课时把它的 status 改成
@@ -52,11 +53,12 @@ final List<Lesson> lessonRegistry = [
     status: LessonStatus.done,
     pageBuilder: (_) => const L5PigeonPage(),
   ),
-  const Lesson(
+  Lesson(
     id: 'L6',
     title: 'PlatformView：视图级混合',
-    scenario: '页面里嵌原生地图 MKMapView',
-    status: LessonStatus.locked,
+    scenario: 'iOS 嵌真地图 / Android 嵌 WebView',
+    status: LessonStatus.inProgress,
+    pageBuilder: (_) => const L6PlatformViewPage(),
   ),
   const Lesson(
     id: 'L7',
