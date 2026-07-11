@@ -192,6 +192,14 @@ class MainActivity : FlutterFragmentActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             DeviceInfoPigeonHost(),
         )
+
+        // L6 PlatformView：注册【视图工厂】（不是 channel）。对照 iOS 的 registrar.register(_:withId:)。
+        // registry.registerViewFactory(viewType, factory) 把 viewType 和工厂绑定，
+        // Dart 侧 AndroidView(viewType:) 就能按名产出 WebView 实例。
+        flutterEngine.platformViewsController.registry.registerViewFactory(
+            "com.wenbo.native_lab/native_view",
+            WebViewFactory(flutterEngine.dartExecutor.binaryMessenger),
+        )
     }
 
     // ── L5 Pigeon 设备信息桥（原生侧对照）────────────────────────────────

@@ -3,6 +3,8 @@
          声明在这里 + 运行时 requestPermission 双管：Android 6+ 危险权限要运行时再问一次。 -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- L6：嵌入的原生 WebView 加载 https 网页需要联网权限（普通权限，无需运行时申请）。 -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="NativeLab 原生实验室"
         android:name="${applicationName}"
