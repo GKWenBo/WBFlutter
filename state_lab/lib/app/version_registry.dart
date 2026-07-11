@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../versions/v0_setstate/v0_shop_root.dart';
+
 /// 一个「同题异解」的 MiniShop 版本条目。
 /// 类比 NativeLab 的 lessonRegistry：builder == null 即未解锁（门禁）。
 class ShopVersion {
@@ -26,12 +28,12 @@ class ShopVersion {
 
 /// 五版对照注册表（设计文档第 3 节）。每完成一课，把对应 builder 接上即"翻牌"。
 final List<ShopVersion> versionRegistry = [
-  const ShopVersion(
+  ShopVersion(
     id: 'v0',
     title: 'v0 · setState 基线版',
     subtitle: '构造函数层层传参 + 回调上浮 + 双重 setState',
     unlockLesson: 'S0',
-    // T5 完成后接上 V0ShopRoot。
+    builder: (_) => const V0ShopRoot(),
   ),
   const ShopVersion(
     id: 'v1',
