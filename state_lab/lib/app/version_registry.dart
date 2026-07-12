@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../versions/v0_setstate/v0_shop_root.dart';
+import '../versions/v1_provider/v1_shop_root.dart';
 
 /// 一个「同题异解」的 MiniShop 版本条目。
 /// 类比 NativeLab 的 lessonRegistry：builder == null 即未解锁（门禁）。
@@ -35,11 +36,12 @@ final List<ShopVersion> versionRegistry = [
     unlockLesson: 'S0',
     builder: (_) => const V0ShopRoot(),
   ),
-  const ShopVersion(
+  ShopVersion(
     id: 'v1',
     title: 'v1 · Provider',
     subtitle: 'InheritedWidget 的工程化封装',
     unlockLesson: 'S2',
+    builder: (_) => const V1ShopRoot(),
   ),
   const ShopVersion(
     id: 'v2',
