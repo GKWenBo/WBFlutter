@@ -3,34 +3,22 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../shared/api/product_api.dart';
-import '../../../shared/models/cart_item.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/async_state_view.dart';
 import '../../../shared/widgets/cart_icon_button.dart';
 import '../../../shared/widgets/product_card.dart';
+import '../state/cart_controller.dart';
+import '../state/mini_provider.dart';
 import 'cart_page.dart';
 import 'product_detail_page.dart';
 
-/// 场景⑤：输入流处理——防抖 400ms + 丢弃过期响应。
-/// 类比 iOS：Combine 的 .debounce + switchToLatest / RxSwift 的
-/// debounce + flatMapLatest。v0 没有流，只能 Timer + 序号手搓。
+/// 场景⑤：防抖 400ms + 序号丢过期——输入流是页面私有状态，继续 setState。
+/// ⭐ 对照 S0：_openCart/_openDetail 的 await+setState 补丁删除；
+/// 加购后的"本页角标 setState"删除——角标 Builder 自动跟。
 class V0SearchPage extends StatefulWidget {
-  const V0SearchPage({
-    super.key,
-    required this.api,
-    required this.cart,
-    required this.onAddToCart,
-    required this.onChangeQty,
-    required this.onRemoveItem,
-    required this.onClearCart,
-  });
+  const V0SearchPage({super.key, required this.api});
 
   final ProductApi api;
-  final List<CartItem> cart;
-  final ValueChanged<Product> onAddToCart;
-  final void Function(int productId, int delta) onChangeQty;
-  final ValueChanged<int> onRemoveItem;
-  final VoidCallback onClearCart;
 
   @override
   State<V0SearchPage> createState() => _V0SearchPageState();
@@ -46,8 +34,6 @@ class _V0SearchPageState extends State<V0SearchPage> {
 
   /// 请求序号：只有"最新一发"的结果才允许落地（手搓版 switchToLatest）。
   int _requestSeq = 0;
-
-  int get _cartCount => widget.cart.fold(0, (sum, it) => sum + it.quantity);
 
   @override
   void dispose() {
@@ -95,34 +81,25 @@ class _V0SearchPageState extends State<V0SearchPage> {
     }
   }
 
-  Future<void> _openCart() async {
-    // 同详情页的痛点展品 3：pop 回来必须手动补 setState，角标才会跟上。
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => V0CartPage(
-        cart: widget.cart,
-        onChangeQty: widget.onChangeQty,
-        onRemoveItem: widget.onRemoveItem,
-        onClearCart: widget.onClearCart,
+  void _openCart() {
+    final cart = MiniProvider.read<CartController>(context);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MiniProvider(notifier: cart, child: const V0CartPage()),
       ),
-    ));
-    if (!mounted) return;
-    setState(() {});
+    );
   }
 
-  Future<void> _openDetail(Product product) async {
-    // 详情页里也能加购/清空——回来同样要补刷（一处漏 = 一处陈旧 UI）。
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => V0ProductDetailPage(
-        product: product,
-        cart: widget.cart,
-        onAddToCart: widget.onAddToCart,
-        onChangeQty: widget.onChangeQty,
-        onRemoveItem: widget.onRemoveItem,
-        onClearCart: widget.onClearCart,
+  void _openDetail(Product product) {
+    final cart = MiniProvider.read<CartController>(context);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MiniProvider(
+          notifier: cart,
+          child: V0ProductDetailPage(product: product),
+        ),
       ),
-    ));
-    if (!mounted) return;
-    setState(() {});
+    );
   }
 
   @override
@@ -138,7 +115,12 @@ class _V0SearchPageState extends State<V0SearchPage> {
           ),
           onChanged: _onChanged,
         ),
-        actions: [CartIconButton(count: _cartCount, onPressed: _openCart)],
+        actions: [
+          Builder(builder: (context) {
+            final cart = MiniProvider.of<CartController>(context);
+            return CartIconButton(count: cart.totalCount, onPressed: _openCart);
+          }),
+        ],
       ),
       body: _lastQuery.isEmpty
           ? const Center(child: Text('输入关键词搜索'))
@@ -156,8 +138,8 @@ class _V0SearchPageState extends State<V0SearchPage> {
                           product: product,
                           onTap: () => _openDetail(product),
                           onAddToCart: () {
-                            widget.onAddToCart(product);
-                            setState(() {}); // 双重 setState：本页角标
+                            MiniProvider.read<CartController>(context)
+                                .add(product);
                             ScaffoldMessenger.of(context)
                               ..hideCurrentSnackBar()
                               ..showSnackBar(const SnackBar(

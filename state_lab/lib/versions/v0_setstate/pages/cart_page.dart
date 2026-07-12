@@ -1,52 +1,29 @@
 import 'package:flutter/material.dart';
 
-import '../../../shared/models/cart_item.dart';
 import '../../../shared/widgets/rebuild_badge.dart';
+import '../state/cart_controller.dart';
+import '../state/mini_provider.dart';
 
 /// 场景③跨页共享 + 场景④派生状态。
-/// 本页拿到的 cart 是根传下来的**同一个 List 引用**：读永远最新，
-/// 但每次改完都要 onXxx（根 setState）+ 本页 setState 双保险——
-/// 一份状态、两处手动通知，这就是 v0 的账。
-class V0CartPage extends StatefulWidget {
-  const V0CartPage({
-    super.key,
-    required this.cart,
-    required this.onChangeQty,
-    required this.onRemoveItem,
-    required this.onClearCart,
-  });
-
-  final List<CartItem> cart;
-  final void Function(int productId, int delta) onChangeQty;
-  final ValueChanged<int> onRemoveItem;
-  final VoidCallback onClearCart;
-
-  @override
-  State<V0CartPage> createState() => _V0CartPageState();
-}
-
-class _V0CartPageState extends State<V0CartPage> {
-  /// 派生状态示范：合计永远现算，不单独存变量。
-  /// 存一份"totalPrice 变量"就得在每个改动点手动同步它——必忘。
-  double get _totalPrice =>
-      widget.cart.fold(0, (sum, it) => sum + it.lineTotal);
-  int get _totalCount => widget.cart.fold(0, (sum, it) => sum + it.quantity);
+/// ⭐ 看类型：StatefulWidget → StatelessWidget。S0 时本页没有任何
+/// 自己的状态，却被迫 Stateful——只为能 setState 通知自己。
+/// 现在整页在 build 里 of() 依赖 controller：谁改购物车，本页自动重建。
+class V0CartPage extends StatelessWidget {
+  const V0CartPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cart = widget.cart;
+    // 整页都在展示购物车——页面级依赖是合理粒度，直接在页面 build 里 of()。
+    final cart = MiniProvider.of<CartController>(context);
+    final items = cart.items;
     return Scaffold(
       appBar: AppBar(
         title: const Text('购物车'),
         actions: [
           TextButton(
-            onPressed: cart.isEmpty
-                ? null
-                : () {
-                    widget.onClearCart();
-                    setState(() {}); // 双重 setState（根 + 本页）
-                  },
+            // 对照 S0：这里曾是 onClearCart() + setState(){} 双保险。
+            onPressed: cart.isEmpty ? null : cart.clear,
             child: const Text('清空'),
           ),
         ],
@@ -54,9 +31,9 @@ class _V0CartPageState extends State<V0CartPage> {
       body: cart.isEmpty
           ? const Center(child: Text('购物车是空的'))
           : ListView.builder(
-              itemCount: cart.length,
+              itemCount: items.length,
               itemBuilder: (context, index) {
-                final item = cart[index];
+                final item = items[index];
                 return Dismissible(
                   key: ValueKey(item.product.id),
                   direction: DismissDirection.endToStart,
@@ -66,10 +43,9 @@ class _V0CartPageState extends State<V0CartPage> {
                     padding: const EdgeInsets.only(right: 20),
                     child: const Icon(Icons.delete, color: Colors.white),
                   ),
-                  onDismissed: (_) {
-                    widget.onRemoveItem(item.product.id);
-                    setState(() {}); // 双重 setState
-                  },
+                  // onDismissed 仍须立刻删数据（Dismissible 铁律），
+                  // remove 里自带 notifyListeners，本页跟着重建。
+                  onDismissed: (_) => cart.remove(item.product.id),
                   child: ListTile(
                     title: Text(item.product.title,
                         maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -81,20 +57,14 @@ class _V0CartPageState extends State<V0CartPage> {
                         IconButton(
                           visualDensity: VisualDensity.compact,
                           icon: const Icon(Icons.remove_circle_outline),
-                          onPressed: () {
-                            widget.onChangeQty(item.product.id, -1);
-                            setState(() {}); // 双重 setState
-                          },
+                          onPressed: () => cart.changeQty(item.product.id, -1),
                         ),
                         Text('${item.quantity}',
                             style: theme.textTheme.titleMedium),
                         IconButton(
                           visualDensity: VisualDensity.compact,
                           icon: const Icon(Icons.add_circle_outline),
-                          onPressed: () {
-                            widget.onChangeQty(item.product.id, 1);
-                            setState(() {}); // 双重 setState
-                          },
+                          onPressed: () => cart.changeQty(item.product.id, 1),
                         ),
                       ],
                     ),
@@ -111,11 +81,11 @@ class _V0CartPageState extends State<V0CartPage> {
                   label: '合计栏',
                   child: Row(
                     children: [
-                      Text('共 $_totalCount 件',
+                      Text('共 ${cart.totalCount} 件',
                           style: theme.textTheme.bodyLarge),
                       const Spacer(),
                       Text(
-                        '合计 \$${_totalPrice.toStringAsFixed(2)}',
+                        '合计 \$${cart.totalPrice.toStringAsFixed(2)}',
                         style: theme.textTheme.titleLarge
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),

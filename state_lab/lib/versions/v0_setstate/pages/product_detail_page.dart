@@ -1,29 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../../../shared/models/cart_item.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/cart_icon_button.dart';
+import '../state/cart_controller.dart';
+import '../state/mini_provider.dart';
 import 'cart_page.dart';
 
-/// 场景②：局部 UI 状态（收藏心形只活在本页，页面销毁即消失）——
-/// 这是 setState 的舒适区，五个版本里它都不该进全局状态。
+/// 场景②：收藏心形是**局部 UI 状态**，继续 setState——五个版本它都不进全局。
+/// ⭐ S0 痛点展品 2、3 谢幕：加购不再双重 setState；进购物车不再
+/// await + 手动补刷——角标的 Builder 依赖着 controller，谁改都自动跟。
 class V0ProductDetailPage extends StatefulWidget {
-  const V0ProductDetailPage({
-    super.key,
-    required this.product,
-    required this.cart,
-    required this.onAddToCart,
-    required this.onChangeQty,
-    required this.onRemoveItem,
-    required this.onClearCart,
-  });
+  const V0ProductDetailPage({super.key, required this.product});
 
   final Product product;
-  final List<CartItem> cart;
-  final ValueChanged<Product> onAddToCart;
-  final void Function(int productId, int delta) onChangeQty;
-  final ValueChanged<int> onRemoveItem;
-  final VoidCallback onClearCart;
 
   @override
   State<V0ProductDetailPage> createState() => _V0ProductDetailPageState();
@@ -32,23 +21,16 @@ class V0ProductDetailPage extends StatefulWidget {
 class _V0ProductDetailPageState extends State<V0ProductDetailPage> {
   bool _favorite = false;
 
-  int get _cartCount => widget.cart.fold(0, (sum, it) => sum + it.quantity);
-
-  Future<void> _openCart() async {
-    // ⭐ 痛点展品 3（学员实测抓到的 bug）：购物车页在更上层改了数据后 pop 回来，
-    // 本页不会被任何人重建（Flutter 没有 viewWillAppear）——角标就"陈旧"了。
-    // v0 的修法只能是：await 路由的 Future，回来后手动补一次 setState
-    // （≈ iOS 在 viewWillAppear / push 的 completion 里 reloadData）。
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => V0CartPage(
-        cart: widget.cart,
-        onChangeQty: widget.onChangeQty,
-        onRemoveItem: widget.onRemoveItem,
-        onClearCart: widget.onClearCart,
+  void _openCart() {
+    // 对照 S0：这里曾是 await push + if(mounted) setState 的手工补丁。
+    // 现在购物车页清空 → controller 开火 → 本页角标 Builder（依赖者）
+    // 立刻重建——pop 回来看到的必然是新值，痛点 3 结构性消失。
+    final cart = MiniProvider.read<CartController>(context);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MiniProvider(notifier: cart, child: const V0CartPage()),
       ),
-    ));
-    if (!mounted) return;
-    setState(() {}); // 重读共享的 cart 引用，刷新角标
+    );
   }
 
   @override
@@ -68,7 +50,10 @@ class _V0ProductDetailPageState extends State<V0ProductDetailPage> {
             // 局部状态：本页 setState 就够了，跟谁都不共享。
             onPressed: () => setState(() => _favorite = !_favorite),
           ),
-          CartIconButton(count: _cartCount, onPressed: _openCart),
+          Builder(builder: (context) {
+            final cart = MiniProvider.of<CartController>(context);
+            return CartIconButton(count: cart.totalCount, onPressed: _openCart);
+          }),
         ],
       ),
       body: ListView(
@@ -107,12 +92,8 @@ class _V0ProductDetailPageState extends State<V0ProductDetailPage> {
             icon: const Icon(Icons.add_shopping_cart),
             label: const Text('加入购物车'),
             onPressed: () {
-              widget.onAddToCart(widget.product);
-              // ⭐ 痛点展品 2「双重 setState」：上面那行已经让根 setState 了，
-              // 但本页是 push 出来的兄弟路由、不在根的子树里，没人来重建它——
-              // 想让 AppBar 角标 +1，必须自己再空 setState 一次。
-              // 忘了这一步，角标就"陈旧"了：这类 bug 在 setState 时代极常见。
-              setState(() {});
+              // 一份状态、一处通知：不再需要"根一次 + 本页一次"。
+              MiniProvider.read<CartController>(context).add(widget.product);
               ScaffoldMessenger.of(context)
                 ..hideCurrentSnackBar()
                 ..showSnackBar(const SnackBar(content: Text('已加入购物车')));

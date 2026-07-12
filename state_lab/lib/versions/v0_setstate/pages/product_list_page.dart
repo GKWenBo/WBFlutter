@@ -1,37 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../../../shared/api/product_api.dart';
-import '../../../shared/models/cart_item.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/async_state_view.dart';
 import '../../../shared/widgets/cart_icon_button.dart';
 import '../../../shared/widgets/product_card.dart';
 import '../../../shared/widgets/rebuild_badge.dart';
+import '../state/cart_controller.dart';
+import '../state/mini_provider.dart';
 import 'cart_page.dart';
 import 'product_detail_page.dart';
 import 'search_page.dart';
 
-/// 场景①：异步三态 + 分页（页面私有状态，setState 的舒适区）。
-/// ⭐ 痛点展品 1：本页自己只用 api / cart / onAddToCart，
-/// 但 onChangeQty / onRemoveItem / onClearCart 也得原样过一遍手——
-/// 因为更深处的购物车页需要。纯纯的"快递中转站"。
+/// 场景①：异步三态 + 分页——这些是页面私有状态，**继续用 setState**，
+/// 这是它的舒适区。S1 只把"跨页共享"的购物车换了水管。
+/// ⭐ S0 痛点展品 1 谢幕：构造函数从 6 参砍到 1 参，"快递中转站"下岗。
 class V0ProductListPage extends StatefulWidget {
-  const V0ProductListPage({
-    super.key,
-    required this.api,
-    required this.cart,
-    required this.onAddToCart,
-    required this.onChangeQty,
-    required this.onRemoveItem,
-    required this.onClearCart,
-  });
+  const V0ProductListPage({super.key, required this.api});
 
   final ProductApi api;
-  final List<CartItem> cart;
-  final ValueChanged<Product> onAddToCart;
-  final void Function(int productId, int delta) onChangeQty;
-  final ValueChanged<int> onRemoveItem;
-  final VoidCallback onClearCart;
 
   @override
   State<V0ProductListPage> createState() => _V0ProductListPageState();
@@ -44,9 +31,6 @@ class _V0ProductListPageState extends State<V0ProductListPage> {
   String? _error;
   bool _hasMore = true;
   int _skip = 0;
-
-  /// 场景④的雏形：角标数量是**派生值**，每次 build 现算，绝不单独存一份。
-  int get _cartCount => widget.cart.fold(0, (sum, it) => sum + it.quantity);
 
   @override
   void initState() {
@@ -107,44 +91,36 @@ class _V0ProductListPageState extends State<V0ProductListPage> {
   }
 
   void _openCart() {
+    // push 出去的路由接不到本页头顶的 MiniProvider——
+    // 把同一个 controller 实例再包一层带过去（≈ Provider 的 .value 用法）。
+    final cart = MiniProvider.read<CartController>(context);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => V0CartPage(
-          cart: widget.cart,
-          onChangeQty: widget.onChangeQty,
-          onRemoveItem: widget.onRemoveItem,
-          onClearCart: widget.onClearCart,
-        ),
+        builder: (_) => MiniProvider(notifier: cart, child: const V0CartPage()),
       ),
     );
   }
 
   void _openDetail(Product product) {
-    // ⭐ 痛点展品 1 现场：进个详情页要手递 6 个参数。
+    // 对照 S0：这里曾经手递 6 个参数。现在只递业务参数 product。
+    final cart = MiniProvider.read<CartController>(context);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => V0ProductDetailPage(
-          product: product,
-          cart: widget.cart,
-          onAddToCart: widget.onAddToCart,
-          onChangeQty: widget.onChangeQty,
-          onRemoveItem: widget.onRemoveItem,
-          onClearCart: widget.onClearCart,
+        builder: (_) => MiniProvider(
+          notifier: cart,
+          child: V0ProductDetailPage(product: product),
         ),
       ),
     );
   }
 
   void _openSearch() {
+    final cart = MiniProvider.read<CartController>(context);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => V0SearchPage(
-          api: widget.api,
-          cart: widget.cart,
-          onAddToCart: widget.onAddToCart,
-          onChangeQty: widget.onChangeQty,
-          onRemoveItem: widget.onRemoveItem,
-          onClearCart: widget.onClearCart,
+        builder: (_) => MiniProvider(
+          notifier: cart,
+          child: V0SearchPage(api: widget.api),
         ),
       ),
     );
@@ -154,19 +130,26 @@ class _V0ProductListPageState extends State<V0ProductListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MiniShop · v0 setState'),
+        title: const Text('MiniShop · v0 setState+迷你Provider'),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
             tooltip: '搜索',
             onPressed: _openSearch,
           ),
-          // 本页在状态根的子树里：根 setState 会带着它重建，角标"自动"新。
-          // （对照 detail/cart 页就没这待遇——见各页注释。）
-          RebuildBadge(
-            label: '列表角标',
-            child: CartIconButton(count: _cartCount, onPressed: _openCart),
-          ),
+          // ⭐ 依赖粒度实验：of() 收进这个 Builder，购物车变化时
+          // 只有它重建——整页、商品卡都不陪跑（S0 痛点 4 的第一刀）。
+          // RebuildBadge 计数对比 S0：加购一件，卡片计数纹丝不动。
+          Builder(builder: (context) {
+            final cart = MiniProvider.of<CartController>(context);
+            return RebuildBadge(
+              label: '列表角标',
+              child: CartIconButton(
+                count: cart.totalCount,
+                onPressed: _openCart,
+              ),
+            );
+          }),
         ],
       ),
       body: AsyncStateView(
@@ -197,7 +180,8 @@ class _V0ProductListPageState extends State<V0ProductListPage> {
                   product: product,
                   onTap: () => _openDetail(product),
                   onAddToCart: () {
-                    widget.onAddToCart(product);
+                    // 事件回调用 read：只调方法，不需要订阅。
+                    MiniProvider.read<CartController>(context).add(product);
                     ScaffoldMessenger.of(context)
                       ..hideCurrentSnackBar()
                       ..showSnackBar(const SnackBar(content: Text('已加入购物车')));
