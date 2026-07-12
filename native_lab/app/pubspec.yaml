@@ -35,6 +35,10 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # L7：本地插件（企业"自家插件库"雏形，path 依赖）
+  nl_device_kit:
+    path: ../plugins/nl_device_kit
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
