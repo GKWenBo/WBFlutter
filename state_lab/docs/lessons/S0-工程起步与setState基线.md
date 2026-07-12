@@ -57,7 +57,7 @@ state_lab/lib/
     version_registry.dart                    # ShopVersion + 五版注册表（门禁）
     version_list_page.dart                   # 首页列表：解锁→push，上锁→SnackBar
   shared/
-    models/product.dart                      # Product + ProductPage（手写 fromJson）
+    models/product.dart                      # Product + ProductPage（json_serializable 代码生成）
     models/cart_item.dart                    # CartItem（可变 quantity + lineTotal 派生）
     api/dio_client.dart                      # buildDio()：DummyJSON 专用 Dio 工厂
     api/product_api.dart                     # fetchProducts(skip)/searchProducts(q)
@@ -93,7 +93,7 @@ state_lab/test/
 | `Navigator.push` 手递参数 | `prepareForSegue` / init 注入 + delegate 回调 | 构造函数传数据下去、传闭包回调上来 | 本课的"痛点展品"——参数会随层级线性膨胀 |
 | `await Navigator.push` 后补 setState | `viewWillAppear` 里 reloadData | `await push(...); if (!mounted) return; setState((){})` | 深层页面改了共享数据，pop 回来下层页面**不会自动重建**；漏包一处 = 一处陈旧 UI（痛点展品 3） |
 | `mounted` | `weak self` 判空 | await 回来先 `if (!mounted) return;` 再 setState | 忘判会抛 "setState() called after dispose()" |
-| `Dio` + 手写 `fromJson` | `URLSession` + 手写 `Decodable` | `dio.get(path, queryParameters:)` → `(res.data as Map)` → fromJson | JSON 数字要 `as num).toDouble()`，直接 `as double` 遇整数崩 |
+| `Dio` + `json_serializable` | `URLSession` + `Codable`（编译器合成） | 模型加 `@JsonSerializable()` + `part 'xx.g.dart'`，`dart run build_runner build` 生成 fromJson | 改了模型字段必须重跑 build_runner，否则生成物和声明不同步；double 字段生成器自动 `(as num).toDouble()`，手写时代的整数崩溃坑由框架兜底 |
 | `ScaffoldMessenger` | 手写 toast/HUD | `..hideCurrentSnackBar()..showSnackBar(...)` 防叠加 | 连点会排队，先 hide 再 show 体验才对 |
 
 ## 四、v0 四大痛点清单（S1/S2 的引子）

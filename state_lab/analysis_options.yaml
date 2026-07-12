@@ -1,5 +1,9 @@
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    - '**/*.g.dart' # 生成物不做人工风格检查（≈ 不给 Pods 里的代码跑 SwiftLint）
+
 linter:
   rules:
     # WanShop M13 收尾时验证过的「性能 + 质量」增强集，本工程从第一天就开着。
