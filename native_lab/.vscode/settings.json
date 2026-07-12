@@ -1,4 +1,5 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive",
-    "sweetpad.build.xcodeWorkspacePath": "app/ios/Runner.xcworkspace"
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "sweetpad.build.xcodeWorkspacePath": "app/ios/Runner.xcworkspace",
+  "java.compile.nullAnalysis.mode": "automatic"
 }

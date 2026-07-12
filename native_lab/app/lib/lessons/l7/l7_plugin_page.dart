@@ -23,12 +23,12 @@ class _L7PluginPageState extends State<L7PluginPage> {
   Future<void> _load() async {
     try {
       final info = await _kit.getDeviceInfo();
-      // final battery = await _kit.getBatteryLevel();
+      final battery = await _kit.getBatteryLevel();
       final uptime = await _kit.getUptime();
       final modeName = await _kit.getDeviceModelName();
       setState(() {
         _info = info;
-        // _battery = battery;
+        _battery = battery;
         _uptime = uptime;
         _modeName = modeName;
         _error = null;
