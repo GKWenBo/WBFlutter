@@ -95,8 +95,9 @@ class _V0SearchPageState extends State<V0SearchPage> {
     }
   }
 
-  void _openCart() {
-    Navigator.of(context).push(MaterialPageRoute<void>(
+  Future<void> _openCart() async {
+    // 同详情页的痛点展品 3：pop 回来必须手动补 setState，角标才会跟上。
+    await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => V0CartPage(
         cart: widget.cart,
         onChangeQty: widget.onChangeQty,
@@ -104,6 +105,24 @@ class _V0SearchPageState extends State<V0SearchPage> {
         onClearCart: widget.onClearCart,
       ),
     ));
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _openDetail(Product product) async {
+    // 详情页里也能加购/清空——回来同样要补刷（一处漏 = 一处陈旧 UI）。
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => V0ProductDetailPage(
+        product: product,
+        cart: widget.cart,
+        onAddToCart: widget.onAddToCart,
+        onChangeQty: widget.onChangeQty,
+        onRemoveItem: widget.onRemoveItem,
+        onClearCart: widget.onClearCart,
+      ),
+    ));
+    if (!mounted) return;
+    setState(() {});
   }
 
   @override
@@ -135,18 +154,7 @@ class _V0SearchPageState extends State<V0SearchPage> {
                         final product = _results[index];
                         return ProductCard(
                           product: product,
-                          onTap: () {
-                            Navigator.of(context).push(MaterialPageRoute<void>(
-                              builder: (_) => V0ProductDetailPage(
-                                product: product,
-                                cart: widget.cart,
-                                onAddToCart: widget.onAddToCart,
-                                onChangeQty: widget.onChangeQty,
-                                onRemoveItem: widget.onRemoveItem,
-                                onClearCart: widget.onClearCart,
-                              ),
-                            ));
-                          },
+                          onTap: () => _openDetail(product),
                           onAddToCart: () {
                             widget.onAddToCart(product);
                             setState(() {}); // 双重 setState：本页角标

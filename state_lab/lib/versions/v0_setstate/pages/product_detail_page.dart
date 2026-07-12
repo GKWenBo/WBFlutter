@@ -34,8 +34,12 @@ class _V0ProductDetailPageState extends State<V0ProductDetailPage> {
 
   int get _cartCount => widget.cart.fold(0, (sum, it) => sum + it.quantity);
 
-  void _openCart() {
-    Navigator.of(context).push(MaterialPageRoute<void>(
+  Future<void> _openCart() async {
+    // ⭐ 痛点展品 3（学员实测抓到的 bug）：购物车页在更上层改了数据后 pop 回来，
+    // 本页不会被任何人重建（Flutter 没有 viewWillAppear）——角标就"陈旧"了。
+    // v0 的修法只能是：await 路由的 Future，回来后手动补一次 setState
+    // （≈ iOS 在 viewWillAppear / push 的 completion 里 reloadData）。
+    await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => V0CartPage(
         cart: widget.cart,
         onChangeQty: widget.onChangeQty,
@@ -43,6 +47,8 @@ class _V0ProductDetailPageState extends State<V0ProductDetailPage> {
         onClearCart: widget.onClearCart,
       ),
     ));
+    if (!mounted) return;
+    setState(() {}); // 重读共享的 cart 引用，刷新角标
   }
 
   @override

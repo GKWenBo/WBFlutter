@@ -91,15 +91,17 @@ state_lab/test/
 | 请求序号丢过期 | Combine `switchToLatest` / RxSwift `flatMapLatest` | 每发一枪 `++_requestSeq`，回来时 `seq != _requestSeq` 就扔 | 不丢过期会出现"慢请求覆盖新结果" |
 | `Image.network` + `errorBuilder` | SDWebImage 的占位图 | `errorBuilder: (_, _, _) => 占位` | 测试环境的假 HttpClient 对一切请求回 400，没有 errorBuilder 测试直接红屏 |
 | `Navigator.push` 手递参数 | `prepareForSegue` / init 注入 + delegate 回调 | 构造函数传数据下去、传闭包回调上来 | 本课的"痛点展品"——参数会随层级线性膨胀 |
+| `await Navigator.push` 后补 setState | `viewWillAppear` 里 reloadData | `await push(...); if (!mounted) return; setState((){})` | 深层页面改了共享数据，pop 回来下层页面**不会自动重建**；漏包一处 = 一处陈旧 UI（痛点展品 3） |
 | `mounted` | `weak self` 判空 | await 回来先 `if (!mounted) return;` 再 setState | 忘判会抛 "setState() called after dispose()" |
 | `Dio` + 手写 `fromJson` | `URLSession` + 手写 `Decodable` | `dio.get(path, queryParameters:)` → `(res.data as Map)` → fromJson | JSON 数字要 `as num).toDouble()`，直接 `as double` 遇整数崩 |
 | `ScaffoldMessenger` | 手写 toast/HUD | `..hideCurrentSnackBar()..showSnackBar(...)` 防叠加 | 连点会排队，先 hide 再 show 体验才对 |
 
-## 四、v0 三大痛点清单（S1/S2 的引子）
+## 四、v0 四大痛点清单（S1/S2 的引子）
 
 1. **层层传参**：`_openDetail` 一次要手递 6 个参数；每加一个共享数据/操作，全链路构造函数都得改一遍（看 `product_list_page.dart` 的 ⭐ 注释）。
 2. **双重 setState**：pushed 页面不在状态根子树里，一次业务变更要两处手动通知（看 `product_detail_page.dart` / `cart_page.dart` 的 ⭐ 注释）。忘一处 = 陈旧 UI bug。
-3. **重建范围粗暴**：根 setState 让整个列表页子树全部重建——AppBar 上 `RebuildBadge(label: '列表角标')` 的计数就是证据：加购一件商品，整页跟着陪跑一次 build。S2 的 `Selector`、S3 的 `buildWhen`、S4 的 `Obx` 都是冲这条来的。
+3. **pop 返回后的陈旧 UI**（⭐ 学员在 S0 验证时实测抓到的真 bug）：详情页 → 购物车页清空 → 返回详情页，角标不清零。根因：上层路由改了数据后 pop，下层页面**不会被任何人重建**（Flutter 没有 viewWillAppear）；数据读出来是对的（共享引用），但没人通知它重新 build。v0 唯一的修法：`await Navigator.push(...)` 等路由回来，再补一次 `setState(() {})`（≈ iOS 在 viewWillAppear/completion 里 reloadData）。**每一条"深层页面可能改数据"的导航都得这么包**——漏一处就是一处陈旧 UI，这正是手动通知模式的不可维护之处。复现该 bug 的回归测试：`test/versions/v0_cart_flow_test.dart` 第二个用例。
+4. **重建范围粗暴**：根 setState 让整个列表页子树全部重建——AppBar 上 `RebuildBadge(label: '列表角标')` 的计数就是证据：加购一件商品，整页跟着陪跑一次 build。S2 的 `Selector`、S3 的 `buildWhen`、S4 的 `Obx` 都是冲这条来的。
 
 ## 五、自测清单
 
@@ -111,6 +113,7 @@ state_lab/test/
 6. `RefreshIndicator.onRefresh` 为什么必须返回 `Future`？
 7. `Dismissible` 的 `onDismissed` 里如果不立刻删数据会发生什么？为什么 key 不能用 index？
 8. 首页列表点 v1 为什么弹 SnackBar 而不是崩溃？门禁的判断依据是什么字段？
+9. （你自己抓到的 bug）购物车页清空后返回详情页，角标为什么不清零？根 setState、购物车页 setState 各刷新了谁、为什么都够不着详情页？v0 的修法是什么，它对应 iOS 的哪个习惯？
 
 （答案先自己写，S0 过关后我出对照版归档到 `自测答案/`。）
 

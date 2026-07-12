@@ -61,4 +61,31 @@ void main() {
     await tester.pump();
     expect(find.text('购物车是空的'), findsOneWidget);
   });
+
+  testWidgets('学员发现的 bug：详情页 → 购物车清空 → 返回详情页，角标必须清零', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: V0ShopRoot(api: FakeProductApi())));
+    await tester.pump();
+    await tester.pump();
+
+    // 进详情页
+    await tester.tap(find.text('测试商品A'));
+    await tester.pumpAndSettle();
+
+    // 详情页底部加购 → 本页角标显示 1
+    await tester.tap(find.text('加入购物车'));
+    await tester.pump();
+    expect(find.text('1'), findsOneWidget);
+
+    // 从详情页进购物车 → 清空
+    await tester.tap(find.byIcon(Icons.shopping_cart_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('清空'));
+    await tester.pump();
+    expect(find.text('购物车是空的'), findsOneWidget);
+
+    // 返回详情页：角标必须消失（pop 回来要能感知到购物车已变）
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('1'), findsNothing);
+  });
 }
