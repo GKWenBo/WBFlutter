@@ -16,10 +16,13 @@ void main() {
 
   testWidgets('点击锁定课时只弹提示，不跳转', (tester) async {
     await tester.pumpWidget(const NativeLabApp());
-    // L6 已解锁，锁定样本换成 L7。
-    await tester.tap(find.text('插件开发'));
+    // L7 已解锁，锁定样本换成 L8。列表是懒加载 ListView，L8 在 600 高的测试视口外，
+    // 先滚动把它带进可见区再点（scrollUntilVisible 会边滚边 build）。
+    final l8 = find.text('add-to-app：原生工程接入 Flutter');
+    await tester.scrollUntilVisible(l8, 300);
+    await tester.tap(l8);
     await tester.pump(); // 推一帧，让 SnackBar 开始入场
-    expect(find.text('先完成前面的课时，再解锁 L7'), findsOneWidget);
+    expect(find.text('先完成前面的课时，再解锁 L8'), findsOneWidget);
   });
 
   testWidgets('点击 L0 进入原生工程解剖页', (tester) async {

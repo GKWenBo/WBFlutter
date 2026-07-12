@@ -6,6 +6,7 @@ import 'l3/l3_network_page.dart';
 import 'l4/l4_scan_page.dart';
 import 'l5/l5_pigeon_page.dart';
 import 'l6/l6_platform_view_page.dart';
+import 'l7/l7_plugin_page.dart';
 
 /// 课程注册表：App 首页列表的数据源。
 /// 每课过关提交时手动翻状态；下一课开课时把它的 status 改成
@@ -60,11 +61,12 @@ final List<Lesson> lessonRegistry = [
     status: LessonStatus.done,
     pageBuilder: (_) => const L6PlatformViewPage(),
   ),
-  const Lesson(
+  Lesson(
     id: 'L7',
     title: '插件开发',
     scenario: '把设备信息桥抽成独立 plugin 包',
-    status: LessonStatus.locked,
+    status: LessonStatus.inProgress,
+    pageBuilder: (_) => const L7PluginPage(),
   ),
   const Lesson(
     id: 'L8',
