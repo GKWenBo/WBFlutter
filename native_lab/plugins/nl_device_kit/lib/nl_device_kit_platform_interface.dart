@@ -22,4 +22,5 @@ abstract class NlDeviceKitPlatform extends PlatformInterface {
   Future<DeviceInfo> getDeviceInfo() => throw UnimplementedError();
   Future<int> getBatteryLevel() => throw UnimplementedError();
   Future<double> getUptime() => throw UnimplementedError();
+  Future<String> getDeviceModelName() => throw UnimplementedError();
 }

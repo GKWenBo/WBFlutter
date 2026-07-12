@@ -11,4 +11,6 @@ class NlDeviceKit {
   Future<int> getBatteryLevel() =>
       NlDeviceKitPlatform.instance.getBatteryLevel();
   Future<double> getUptime() => NlDeviceKitPlatform.instance.getUptime();
+  Future<String> getDeviceModelName() =>
+      NlDeviceKitPlatform.instance.getDeviceModelName();
 }

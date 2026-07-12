@@ -34,8 +34,24 @@ public class NlDeviceKitPlugin: NSObject, FlutterPlugin {
       }
     case "getSystemUpTime":
       result(ProcessInfo.processInfo.systemUptime)
+    case "getDeviceModelName":
+        result(UIDevice.modelIdentifier)
     default:
       result(FlutterMethodNotImplemented)
     }
   }
+}
+
+extension UIDevice {
+    /// 机型标识符，例如：iPhone17,1
+    static var modelIdentifier: String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+
+        return withUnsafePointer(to: &systemInfo.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 1) {
+                String(cString: $0)
+            }
+        }
+    }
 }

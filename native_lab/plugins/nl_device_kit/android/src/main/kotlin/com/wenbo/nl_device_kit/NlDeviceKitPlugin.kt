@@ -45,6 +45,7 @@ class NlDeviceKitPlugin :
                 else result.success(level)
             }
             "getSystemUpTime" -> result.success(SystemClock.elapsedRealtime() / 1000.0)
+            "getDeviceModelName" -> result.success(Build.MODEL)
             else -> result.notImplemented()
         }
     }

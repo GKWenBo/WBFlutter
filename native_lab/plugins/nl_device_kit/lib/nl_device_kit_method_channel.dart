@@ -13,7 +13,9 @@ class MethodChannelNlDeviceKit extends NlDeviceKitPlatform {
 
   @override
   Future<DeviceInfo> getDeviceInfo() async {
-    final map = await methodChannel.invokeMapMethod<String, Object?>('getDeviceInfo');
+    final map = await methodChannel.invokeMapMethod<String, Object?>(
+      'getDeviceInfo',
+    );
     if (map == null) {
       throw PlatformException(code: 'NULL_RESULT', message: '原生侧返回了空数据');
     }
@@ -30,5 +32,11 @@ class MethodChannelNlDeviceKit extends NlDeviceKitPlatform {
   Future<double> getUptime() async {
     final time = await methodChannel.invokeMethod<double>('getSystemUpTime');
     return time ?? 0;
+  }
+
+  @override
+  Future<String> getDeviceModelName() async {
+    final name = await methodChannel.invokeMethod<String>("getDeviceModelName");
+    return name ?? "";
   }
 }

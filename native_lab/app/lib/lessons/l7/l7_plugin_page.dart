@@ -18,16 +18,19 @@ class _L7PluginPageState extends State<L7PluginPage> {
   int? _battery;
   double? _uptime;
   Object? _error;
+  String? _modeName;
 
   Future<void> _load() async {
     try {
       final info = await _kit.getDeviceInfo();
-      final battery = await _kit.getBatteryLevel();
+      // final battery = await _kit.getBatteryLevel();
       final uptime = await _kit.getUptime();
+      final modeName = await _kit.getDeviceModelName();
       setState(() {
         _info = info;
-        _battery = battery;
+        // _battery = battery;
         _uptime = uptime;
+        _modeName = modeName;
         _error = null;
       });
     } catch (e) {
@@ -75,8 +78,11 @@ class _L7PluginPageState extends State<L7PluginPage> {
                   _row('系统', '${_info!.systemName} ${_info!.systemVersion}'),
                   _row('App 版本', _info!.appVersion),
                   _row('电量', _battery == null ? '未知' : '$_battery%'),
-                  _row('开机时长',
-                      _uptime == null ? '未知' : '${_uptime!.toStringAsFixed(0)}s'),
+                  _row(
+                    '开机时长',
+                    _uptime == null ? '未知' : '${_uptime!.toStringAsFixed(0)}s',
+                  ),
+                  _row("机型型号", _modeName ?? "未知"),
                 ],
               ),
             ),
@@ -86,8 +92,8 @@ class _L7PluginPageState extends State<L7PluginPage> {
   }
 
   Widget _row(String k, String v) => ListTile(
-        dense: true,
-        title: Text(k),
-        trailing: Text(v, style: const TextStyle(fontWeight: FontWeight.bold)),
-      );
+    dense: true,
+    title: Text(k),
+    trailing: Text(v, style: const TextStyle(fontWeight: FontWeight.bold)),
+  );
 }
