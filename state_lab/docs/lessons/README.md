@@ -7,7 +7,7 @@
 | 课 | 主题 | 状态 |
 |---|---|---|
 | S0 | 工程起步 + setState 基线版 MiniShop | ✅ 完成（2026-07-12） |
-| S1 | 原理篇：InheritedWidget 与手写迷你 Provider | 🔄 进行中 |
+| S1 | 原理篇：InheritedWidget 与手写迷你 Provider | ✅ 完成（2026-07-12） |
 | S2 | Provider 版 MiniShop | ⏳ 未开始 |
 | S3 | Bloc 版 MiniShop | ⏳ 未开始 |
 | S4 | GetX 版 MiniShop | ⏳ 未开始 |
