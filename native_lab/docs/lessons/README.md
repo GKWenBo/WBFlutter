@@ -12,7 +12,7 @@
 | [L3](L3-EventChannel网络状态推流.md) | EventChannel：原生持续推流 | ✅ 已完成 |
 | [L4](L4-页面级混合与权限.md) | 页面级混合 + 权限 | ✅ 已完成 |
 | [L5](L5-Pigeon类型安全生成.md) | Pigeon 类型安全生成 | ✅ 已完成 |
-| L6 | PlatformView：视图级混合 | ⬜ 未开始 |
+| [L6](L6-PlatformView视图级混合.md) | PlatformView：视图级混合 | ✅ 已完成 |
 | L7 | 插件开发 | ⬜ 未开始 |
 | L8 | add-to-app：原生工程接入 Flutter | ⬜ 未开始 |
 | L9 | add-to-app：引擎管理与通信 | ⬜ 未开始 |

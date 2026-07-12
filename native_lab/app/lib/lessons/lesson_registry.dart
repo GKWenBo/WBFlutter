@@ -57,7 +57,7 @@ final List<Lesson> lessonRegistry = [
     id: 'L6',
     title: 'PlatformView：视图级混合',
     scenario: 'iOS 嵌真地图 / Android 嵌 WebView',
-    status: LessonStatus.inProgress,
+    status: LessonStatus.done,
     pageBuilder: (_) => const L6PlatformViewPage(),
   ),
   const Lesson(
