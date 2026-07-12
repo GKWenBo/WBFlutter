@@ -107,41 +107,47 @@ class _V0ProductListPageState extends State<V0ProductListPage> {
   }
 
   void _openCart() {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => V0CartPage(
-        cart: widget.cart,
-        onChangeQty: widget.onChangeQty,
-        onRemoveItem: widget.onRemoveItem,
-        onClearCart: widget.onClearCart,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => V0CartPage(
+          cart: widget.cart,
+          onChangeQty: widget.onChangeQty,
+          onRemoveItem: widget.onRemoveItem,
+          onClearCart: widget.onClearCart,
+        ),
       ),
-    ));
+    );
   }
 
   void _openDetail(Product product) {
     // ⭐ 痛点展品 1 现场：进个详情页要手递 6 个参数。
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => V0ProductDetailPage(
-        product: product,
-        cart: widget.cart,
-        onAddToCart: widget.onAddToCart,
-        onChangeQty: widget.onChangeQty,
-        onRemoveItem: widget.onRemoveItem,
-        onClearCart: widget.onClearCart,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => V0ProductDetailPage(
+          product: product,
+          cart: widget.cart,
+          onAddToCart: widget.onAddToCart,
+          onChangeQty: widget.onChangeQty,
+          onRemoveItem: widget.onRemoveItem,
+          onClearCart: widget.onClearCart,
+        ),
       ),
-    ));
+    );
   }
 
   void _openSearch() {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => V0SearchPage(
-        api: widget.api,
-        cart: widget.cart,
-        onAddToCart: widget.onAddToCart,
-        onChangeQty: widget.onChangeQty,
-        onRemoveItem: widget.onRemoveItem,
-        onClearCart: widget.onClearCart,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => V0SearchPage(
+          api: widget.api,
+          cart: widget.cart,
+          onAddToCart: widget.onAddToCart,
+          onChangeQty: widget.onChangeQty,
+          onRemoveItem: widget.onRemoveItem,
+          onClearCart: widget.onClearCart,
+        ),
       ),
-    ));
+    );
   }
 
   @override
@@ -194,9 +200,7 @@ class _V0ProductListPageState extends State<V0ProductListPage> {
                     widget.onAddToCart(product);
                     ScaffoldMessenger.of(context)
                       ..hideCurrentSnackBar()
-                      ..showSnackBar(
-                        const SnackBar(content: Text('已加入购物车')),
-                      );
+                      ..showSnackBar(const SnackBar(content: Text('已加入购物车')));
                   },
                 );
               },
