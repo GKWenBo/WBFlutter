@@ -35,10 +35,10 @@ class CartCubit extends Cubit<CartState> {
   }
 
   void remove(int productId) => emit(
-        CartState(
-          items: state.items.where((l) => l.product.id != productId).toList(),
-        ),
-      );
+    CartState(
+      items: state.items.where((l) => l.product.id != productId).toList(),
+    ),
+  );
 
   void clear() => emit(const CartState());
 }

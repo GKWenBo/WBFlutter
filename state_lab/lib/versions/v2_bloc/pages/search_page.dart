@@ -35,7 +35,8 @@ class _V2SearchPageState extends State<V2SearchPage> {
     final cart = context.read<CartCubit>();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => BlocProvider.value(value: cart, child: const V2CartPage()),
+        builder: (_) =>
+            BlocProvider.value(value: cart, child: const V2CartPage()),
       ),
     );
   }
@@ -56,69 +57,77 @@ class _V2SearchPageState extends State<V2SearchPage> {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => SearchBloc(context.read<ProductApi>()),
-      child: Builder(builder: (context) {
-        return Scaffold(
-          appBar: AppBar(
-            title: TextField(
-              controller: _controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                hintText: '搜索商品（如 phone）',
-                border: InputBorder.none,
-              ),
-              onChanged: (text) =>
-                  context.read<SearchBloc>().add(SearchQueryChanged(text)),
-            ),
-            actions: [
-              BlocSelector<CartCubit, CartState, int>(
-                selector: (state) => state.totalCount,
-                builder: (context, count) => CartIconButton(
-                  count: count,
-                  onPressed: () => _openCart(context),
+      child: Builder(
+        builder: (context) {
+          return Scaffold(
+            appBar: AppBar(
+              title: TextField(
+                controller: _controller,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '搜索商品（如 phone）',
+                  border: InputBorder.none,
                 ),
+                onChanged: (text) =>
+                    context.read<SearchBloc>().add(SearchQueryChanged(text)),
               ),
-            ],
-          ),
-          body: BlocConsumer<SearchBloc, SearchState>(
-            // listener：副作用——失败弹瞬时 SnackBar（不参与重建）。
-            // listenWhen 限定"刚转入 failure"才弹，避免重复。
-            listenWhen: (prev, curr) =>
-                prev.status != curr.status && curr.status == SearchStatus.failure,
-            listener: (context, state) {
-              ScaffoldMessenger.of(context)
-                ..hideCurrentSnackBar()
-                ..showSnackBar(SnackBar(content: Text(state.error ?? '搜索失败')));
-            },
-            builder: (context, state) => state.query.isEmpty
-                ? const Center(child: Text('输入关键词搜索'))
-                : AsyncStateView(
-                    loading: state.status == SearchStatus.loading,
-                    error: state.status == SearchStatus.failure ? state.error : null,
-                    onRetry: () =>
-                        context.read<SearchBloc>().add(const SearchRetried()),
-                    builder: (_) => state.results.isEmpty
-                        ? const Center(child: Text('没有找到相关商品'))
-                        : ListView.builder(
-                            itemCount: state.results.length,
-                            itemBuilder: (context, index) {
-                              final product = state.results[index];
-                              return ProductCard(
-                                product: product,
-                                onTap: () => _openDetail(context, product),
-                                onAddToCart: () {
-                                  context.read<CartCubit>().add(product);
-                                  ScaffoldMessenger.of(context)
-                                    ..hideCurrentSnackBar()
-                                    ..showSnackBar(const SnackBar(
-                                        content: Text('已加入购物车')));
-                                },
-                              );
-                            },
-                          ),
+              actions: [
+                BlocSelector<CartCubit, CartState, int>(
+                  selector: (state) => state.totalCount,
+                  builder: (context, count) => CartIconButton(
+                    count: count,
+                    onPressed: () => _openCart(context),
                   ),
-          ),
-        );
-      }),
+                ),
+              ],
+            ),
+            body: BlocConsumer<SearchBloc, SearchState>(
+              // listener：副作用——失败弹瞬时 SnackBar（不参与重建）。
+              // listenWhen 限定"刚转入 failure"才弹，避免重复。
+              listenWhen: (prev, curr) =>
+                  prev.status != curr.status &&
+                  curr.status == SearchStatus.failure,
+              listener: (context, state) {
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(
+                    SnackBar(content: Text(state.error ?? '搜索失败')),
+                  );
+              },
+              builder: (context, state) => state.query.isEmpty
+                  ? const Center(child: Text('输入关键词搜索'))
+                  : AsyncStateView(
+                      loading: state.status == SearchStatus.loading,
+                      error: state.status == SearchStatus.failure
+                          ? state.error
+                          : null,
+                      onRetry: () =>
+                          context.read<SearchBloc>().add(const SearchRetried()),
+                      builder: (_) => state.results.isEmpty
+                          ? const Center(child: Text('没有找到相关商品'))
+                          : ListView.builder(
+                              itemCount: state.results.length,
+                              itemBuilder: (context, index) {
+                                final product = state.results[index];
+                                return ProductCard(
+                                  product: product,
+                                  onTap: () => _openDetail(context, product),
+                                  onAddToCart: () {
+                                    context.read<CartCubit>().add(product);
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(
+                                        const SnackBar(content: Text('已加入购物车')),
+                                      );
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
