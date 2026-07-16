@@ -10,6 +10,6 @@
 | S1 | 原理篇：InheritedWidget 与手写迷你 Provider | ✅ 完成（2026-07-12） |
 | S2 | Provider 版 MiniShop | ✅ 完成（2026-07-13） |
 | S3 | Bloc 版 MiniShop | ✅ 完成（2026-07-16） |
-| S4 | GetX 版 MiniShop | 🔄 进行中 |
-| S5 | 横向对比与选型总结 | ⏳ 未开始 |
+| S4 | GetX 版 MiniShop | ✅ 完成（2026-07-16） |
+| S5 | 横向对比与选型总结 | 🔄 进行中 |
 | S6 | 结课作业：Riverpod 版 MiniShop（学员独立完成） | ⏳ 未开始 |
