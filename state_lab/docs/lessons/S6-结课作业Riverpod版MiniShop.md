@@ -1,7 +1,7 @@
 # S6 · 结课作业：Riverpod 版 MiniShop
 
 > StateLab 第七课（结课）。原定学员独立实现 v4_riverpod、讲师只出验收 checklist + code review；2026-07-16 改为一次性完成模式——讲师直接产出**参考实现**（`versions/v4_riverpod/`），本讲义保留验收 checklist（自查用）并附 code review 记录。
-> Riverpod 深度对照见 [s5 §0/§1](../tech/s5-横向对比与选型.md)；WanShop 主栈已用 Riverpod codegen，本参考实现刻意用**手写 Notifier** 版——两种写法等价，codegen 只是把 `final xxxProvider = ...` 那行变成注解生成（`@riverpod` + build_runner），核心概念一字不差。
+> 深度长文见 [s6-riverpod](../tech/s6-riverpod.md)（六章骨架与 s2–s4 同规格）；横向定位见 [s5 §0/§1](../tech/s5-横向对比与选型.md)。WanShop 主栈已用 Riverpod codegen，本参考实现刻意用**手写 Notifier** 版——两种写法运行时等价，差异清单见 s6 §2.1（注意 codegen 默认 autoDispose 与手写相反）。
 
 ## 一、验收 Checklist（对照设计文档第 4 节，逐条自查）
 
