@@ -1,0 +1,22 @@
+# L8 add-to-app：把 Flutter module 缝进这个【已有的原生 iOS App】。
+# 对照 L0–L7：那边是 Flutter 工程自带 ios/Runner（Flutter 当家）；
+# 这里反过来——原生工程当家，Flutter 只是被"接进来"的一个模块。
+
+platform :ios, '15.0'
+
+# ① 指向 module 目录（相对本 Podfile）。module 是兄弟目录，不在壳工程里面。
+flutter_application_path = '../flutter_module'
+# ② podhelper.rb 是 Flutter 提供的集成脚本：它定义了 install_all_flutter_pods，
+#    负责把 Flutter.framework、App.framework、以及 module 依赖的所有插件
+#    都变成 Pod 依赖塞进来，并配置好 Debug/Profile/Release 的产物路径。
+load File.join(flutter_application_path, '.ios', 'Flutter', 'podhelper.rb')
+
+target 'WBiOSProject' do
+  # ③ 一行接管：这就是 add-to-app 的核心机关。
+  install_all_flutter_pods(flutter_application_path)
+end
+
+# ④ 每次 pod install 后回写 module 的构建配置（Flutter 要求的收尾动作）。
+post_install do |installer|
+  flutter_post_install(installer) if defined?(flutter_post_install)
+end

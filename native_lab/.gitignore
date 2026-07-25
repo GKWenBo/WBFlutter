@@ -1,0 +1,5 @@
+
+# L8/L9 add-to-app：原生壳工程与 module 的构建产物
+WBiOSProject/Pods/
+WBiOSProject/Podfile.lock
+**/xcuserdata/
