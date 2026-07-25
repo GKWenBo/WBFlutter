@@ -41,15 +41,18 @@ class _LessonTile extends StatelessWidget {
       },
       onTap: () {
         final builder = lesson.pageBuilder;
-        if (lesson.status == LessonStatus.locked || builder == null) {
-          // 门禁：未解锁的课只给提示。
+        if (builder == null) {
+          // 两种情况都没有本 App 内的页面可跳，但原因完全不同，提示要分开说：
+          // · 未解锁 → 门禁提示；
+          // · 已完成但没有页面 → L8/L9 那种 add-to-app 课，成果在【原生壳工程】里。
           // ScaffoldMessenger 类比 iOS 里全局管理 toast/HUD 的单例，
           // 好处是页面销毁了提示还能活着。
+          final message = lesson.status == LessonStatus.done
+              ? '${lesson.id} 的成果在原生壳工程 WBiOSProject 中，用 Xcode 打开体验'
+              : '先完成前面的课时，再解锁 ${lesson.id}';
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(content: Text('先完成前面的课时，再解锁 ${lesson.id}')),
-            );
+            ..showSnackBar(SnackBar(content: Text(message)));
           return;
         }
         // 类比 UINavigationController.pushViewController。

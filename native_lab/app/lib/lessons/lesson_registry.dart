@@ -65,19 +65,21 @@ final List<Lesson> lessonRegistry = [
     id: 'L7',
     title: '插件开发',
     scenario: '把设备信息桥抽成独立 plugin 包',
-    status: LessonStatus.inProgress,
+    status: LessonStatus.done,
     pageBuilder: (_) => const L7PluginPage(),
   ),
+  // L8/L9 没有 pageBuilder：这两课的成果不在本 App 里，而在原生壳工程
+  // WBiOSProject（+ flutter_module）中——点击会提示去 Xcode 打开。
   const Lesson(
     id: 'L8',
     title: 'add-to-app：原生工程接入 Flutter',
     scenario: '已有原生 App 用 CocoaPods 接入 Flutter 模块',
-    status: LessonStatus.locked,
+    status: LessonStatus.done,
   ),
   const Lesson(
     id: 'L9',
     title: 'add-to-app：引擎管理与通信',
     scenario: '引擎预热、原生↔模块双向通信、路由协调',
-    status: LessonStatus.locked,
+    status: LessonStatus.done,
   ),
 ];

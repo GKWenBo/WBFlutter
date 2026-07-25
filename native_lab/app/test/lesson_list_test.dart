@@ -14,15 +14,19 @@ void main() {
     expect(find.text('MethodChannel：Flutter 调原生'), findsOneWidget);
   });
 
-  testWidgets('点击锁定课时只弹提示，不跳转', (tester) async {
+  testWidgets('点击 L8（成果在原生壳工程）只弹提示，不跳转', (tester) async {
     await tester.pumpWidget(const NativeLabApp());
-    // L7 已解锁，锁定样本换成 L8。列表是懒加载 ListView，L8 在 600 高的测试视口外，
-    // 先滚动把它带进可见区再点（scrollUntilVisible 会边滚边 build）。
+    // 全 10 课已完成，不再有锁定样本。L8/L9 是 add-to-app 课，成果在原生壳工程里，
+    // App 内没有对应页面 → 点击应给"去 Xcode 打开"的提示，而不是门禁提示。
+    // 列表是懒加载 ListView，L8 在 600 高的测试视口外，先滚动把它带进可见区再点。
     final l8 = find.text('add-to-app：原生工程接入 Flutter');
     await tester.scrollUntilVisible(l8, 300);
     await tester.tap(l8);
     await tester.pump(); // 推一帧，让 SnackBar 开始入场
-    expect(find.text('先完成前面的课时，再解锁 L8'), findsOneWidget);
+    expect(
+      find.text('L8 的成果在原生壳工程 WBiOSProject 中，用 Xcode 打开体验'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('点击 L0 进入原生工程解剖页', (tester) async {
