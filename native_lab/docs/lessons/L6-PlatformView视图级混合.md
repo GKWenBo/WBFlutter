@@ -32,6 +32,43 @@ L1–L5 都是**应用级单例 channel**：一个 App 一条 `com.wenbo.native_
 
 原生视图要和 Flutter 的渲染树**合成到一起**（纹理拷贝 / 额外图层 / 有时触发线程同步），比纯 Flutter widget 贵。所以：**能用 Flutter 画的就别嵌**；只有当你需要一个 Flutter 造不出的**真实原生 SDK 视图**（地图/网页/相机/广告）时才用 PlatformView。选型对照见第五节。
 
+**6. ★ 合成模式：贵在哪里（Android 三种模式 + iOS 的交错合成）。**
+
+Flutter 的画面本来是**一整块自绘 surface**。要把一个原生视图"夹"进这块画面里（下面有 Flutter 背景、上面有 Flutter 按钮），引擎只有两条路：**要么把原生视图渲染成纹理贴进来，要么把 Flutter 的画面拆成多层、让原生视图真的插在中间**。两条路各有代价，这就是 PlatformView 的全部开销来源。
+
+Android 侧历史上出现过三种模式：
+
+| 模式 | 做法 | 代价 / 问题 |
+|---|---|---|
+| **Virtual Display（VD，最早）** | 原生 view 渲染到一块虚拟显示的纹理，再当图片贴进 Flutter | 触摸事件要**转发**过去，文本输入、无障碍、部分动画会出问题 |
+| **Hybrid Composition（HC）** | 原生 view **真实加进 Android 视图层级**，Flutter 画面拆成上下两层与它交错 | 输入/无障碍正常；早期版本开销明显（需要平台线程参与合成） |
+| **Texture Layer Hybrid Composition（TLHC，Flutter 3.0 起的默认）** | 折中：view 留在层级里处理输入，内容渲染进纹理由 Flutter 合成 | 大多数场景下的最佳平衡；部分特殊 view（有自定义 surface 的）会自动回退到 HC |
+
+日常写 `AndroidView` 由框架**自动选**模式；需要强制 HC 时才用 `PlatformViewLink` + `initExpensiveAndroidView`。iOS 侧只有一条路：原生 `UIView` 真实加入 UIKit 层级，引擎把 Flutter 图层拆开与之交错——**这就是为什么 iOS 侧嵌得越多、图层拆得越碎、越慢**（历史版本还会触发 platform 与 raster 线程合并，新版本引擎已大幅优化）。
+
+**结论（面试直接说这句）：PlatformView 的代价不是"多画一个 view"，而是"把 Flutter 原本一整块的合成拆开了"。所以要少用、别嵌一堆、别放进长列表反复创建销毁。**
+
+**7. ★ 手势冲突：谁吃这一下触摸？**
+
+原生视图嵌在 Flutter 里，触摸事件要在两套手势系统之间分配。默认行为是：**Flutter 的手势竞技场（gesture arena）先裁决**，只有 Flutter 侧没有 widget 认领这个手势时，事件才交给原生视图。
+
+后果很典型：地图外面套了个 `ListView`/`PageView`，你在地图上拖动，**父级的滚动先赢了**，地图纹丝不动。
+
+解法是给 `UiKitView`/`AndroidView` 传 `gestureRecognizers`，把手势"抢"给原生视图：
+
+```dart
+UiKitView(
+  viewType: kNativeViewType,
+  gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+    Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+  },
+)
+```
+
+`EagerGestureRecognizer` 的意思是"**立刻赢下竞技场**"——所有落在这个视图上的手势直接归原生。也可以只声明 `PanGestureRecognizer` 等特定类型做精细划分。
+
+相关的还有**键盘输入**：Android 的 VD 模式下原生输入框的焦点/输入法会出问题，这也是当年推 Hybrid Composition 的直接动因；今天用 TLHC/HC 基本正常，但"嵌一个带输入框的原生视图"仍然是要专门验证的场景。
+
 ## 二、控件 / API 速查表
 
 ### Dart 侧（本课新东西）
@@ -146,3 +183,59 @@ messenger.setMockMethodCallHandler(SystemChannels.platform_views,
 4. 补一条测试：mock 该实例通道**从原生方向**发一次调用，断言 Dart 侧收到并更新。
 
 练的就是"PlatformView 也能双向"——把 L3/L5 学的"原生主动回话"落到**单个视图实例**这条通道上。
+
+## 八、面试高频题（附答案）
+
+> 面试语境：只要你简历上出现过"地图/WebView/相机/广告"，PlatformView 几乎必问，而且会直奔**性能**和**手势冲突**这两个真实痛点。
+
+**Q1. PlatformView 的原理是什么？为什么说它比普通 widget 贵？**
+
+Flutter 的画面本是**一整块自绘 surface**。嵌入原生视图意味着要在这块画面中间插一层"不是 Flutter 画的东西"，引擎只能：把原生视图**渲染成纹理**贴进来，或者把 **Flutter 的图层拆成多层**让原生视图真的插在中间。前者要纹理拷贝和事件转发，后者要多层合成与线程配合。
+
+所以代价不是"多画一个 view"，而是**把原本一次性的合成拆开了**——嵌得越多、层次越复杂，开销越大。
+
+**Q2. Android 上的 Virtual Display / Hybrid Composition / TLHC 是什么？现在默认用哪个？**
+
+见正文第一节第 6 点的表：VD 最早（用纹理，输入/无障碍有问题）→ HC（view 真实入层级，输入正常但早期开销大）→ **TLHC 是 Flutter 3.0 起 `AndroidView` 的默认**（折中：留在层级里处理输入、内容走纹理）。特殊 view 会自动回退到 HC；需要强制 HC 时用 `PlatformViewLink` + `initExpensiveAndroidView`。
+
+iOS 侧没有这几种模式之分，一直是"真实 `UIView` 加入层级 + Flutter 图层交错"。
+
+**Q3. 原生视图上的手势和 Flutter 的手势冲突了怎么办？**
+
+默认 **Flutter 的手势竞技场优先**，只有没人认领时事件才给原生视图。典型症状：地图外套着可滚动父级，拖地图变成了滚页面。
+
+解法：给 `UiKitView`/`AndroidView` 传 `gestureRecognizers`，例如塞一个 `EagerGestureRecognizer`（**立刻赢下竞技场**，触摸全部归原生），或只声明特定类型的 recognizer 做精细划分。
+
+**Q4. 为什么每个视图实例要一条独立的方法通道？`viewId` 从哪来？**
+
+因为一个页面可能同时嵌**多个同类原生视图**（两张地图、三个 WebView），共用一条应用级 channel 就无法寻址"reload 哪一个"。所以通道名带 `viewId`：`com.wenbo.native_lab/native_view_<viewId>`。
+
+`viewId` 由框架在创建视图时分配，Dart 侧从 `onPlatformViewCreated: (int id)` 回调拿到，据此为该实例建控制器。**这是 PlatformView 和前五课"一个 App 一条桥"最大的结构差异。**
+
+**Q5. `creationParams` 和创建后的方法通道有什么区别？codec 为什么必须对齐？**
+
+`creationParams` 是**创建那一刻**的一次性单向初始参数（初始地图区域、初始 URL）；方法通道是**创建之后**的持续双向控制。
+
+codec 对齐是因为 `creationParams` 要跨语言序列化：Dart 用 `StandardMessageCodec` 编，原生 Factory 的 `createArgsCodec()` 必须是**同一套**（iOS `FlutterStandardMessageCodec.sharedInstance()` / Android `StandardMessageCodec.INSTANCE`），否则解不出来。本质就是 L2 那句话：**编解码两端必须同一套规则。**
+
+**Q6. PlatformView 的生命周期怎么管？放进 `ListView` 里会有什么问题？**
+
+原生视图随 widget 的挂载/卸载创建和销毁，销毁时**必须释放原生资源**（Android 的 `dispose()` 里 `webView.destroy()`、iOS 侧断开 delegate、停掉地图定位等），否则泄漏。
+
+放进长列表是**典型反模式**：列表滚动会不断创建/销毁原生视图，每次都要走完整的注册-创建-合成流程，卡顿和内存抖动都很明显。真要做（比如信息流里的广告位），常见对策是**限制同屏实例数 + 复用 + 滚动时先占位、停下再真正加载**。
+
+**Q7. 地图/WebView 这种需求，自己写 PlatformView 还是用现成插件？**
+
+**优先用成熟插件**（`webview_flutter`、各家地图官方 Flutter 插件）。因为它们已经处理掉了 PlatformView 最脏的部分：合成模式适配、手势冲突、键盘与输入法、无障碍、生命周期与内存、双端 API 对齐。
+
+自己写的合理场景：① 公司内部/小众的**原生 SDK 视图**（自研播放器、广告 SDK、硬件预览）；② 现成插件缺关键能力且不便改造。答题时给出这个判断标准，比单纯说"我自己实现过"更成熟。
+
+**Q8. PlatformView 的效果怎么测试？为什么不能靠 widget test？**
+
+widget test 跑在没有原生宿主的纯 Dart 环境，`MKMapView`/`WebView` 根本不会被创建（还得 mock 掉 `flutter/platform_views` 系统通道免得抛错）。所以分层测：
+
+- **widget test 测 Dart 侧**：控制器有没有把动作编成正确的 method call、按平台有没有产出正确的 `UiKitView`/`AndroidView`、页面能不能 build；
+- **原生渲染与交互靠模拟器/真机实跑 + 截图**；
+- 性能则用 **DevTools / Xcode Instruments** 看合成开销和帧率。
+
+答"原生渲染归实跑、Dart 逻辑归单测，各管一段"，比说"这个测不了"要好。

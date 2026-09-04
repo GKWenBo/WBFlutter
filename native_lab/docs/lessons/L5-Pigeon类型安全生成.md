@@ -47,6 +47,23 @@ Pigeon **不取代** `MethodChannel`，它是**盖在 MethodChannel 上面的代
 
 `@async PigeonDeviceInfo getDeviceInfo();` 生成后：iOS 是 `getDeviceInfo(completion:)`、Android 是 `getDeviceInfo(callback:)`——原生可异步完成再回值（对照 L1 handler 里的 `result(...)`）。Dart 侧无论是否 `@async` 都是 `Future`。
 
+**5. 四种注解全家福（本课用了前两个，另外两个要知道存在）。**
+
+| 注解 | 方向/形态 | 对照本课程 | 什么时候用 |
+|---|---|---|---|
+| `@HostApi()` | Flutter → 原生，一问一答 | L1 手写 MethodChannel | 绝大多数"调一个原生能力" |
+| `@FlutterApi()` | 原生 → Flutter，方法回调 | L3 的反方向 | 原生主动通知，且事件是**离散**的 |
+| `@EventChannelApi()` | 原生 → Flutter，**生成的就是 `Stream`** | L3 EventChannel | 持续流式数据，比 `@FlutterApi` + 手动转 Stream 更贴合 |
+| `@ProxyApi()` | 把一个**原生对象**包成 Dart 侧对象（有构造、有实例方法、能持有状态） | 类似 L6 的"每实例一条通道" | 要在 Dart 侧操作多个原生实例（如多个 WebView/播放器）时 |
+
+pigeon 27 里 `@EventChannelApi` 已经可用——**如果本课重做一遍，电量推送用它会比 `@FlutterApi` 更自然**（省掉手动 `StreamController` 转接）。这里保留 `@FlutterApi` 版本，是为了和 L3 做"同一件事、两种做法"的对照。
+
+**6. 生成的 codec 是什么？（面试爱挖的一层）**
+
+Pigeon 给每个 API 生成一个**继承 `StandardMessageCodec` 的私有 codec**，把你在契约里声明的数据类注册成**自定义 type id（从 128 起，低位是 Flutter 保留的）**——也就是 L2 里"扩展 codec 支持自定义类型"那件事，它替你在三端各写了一份且保证对齐。
+
+所以那句话要记牢：**Pigeon 不是新的通信机制，它是"帮你写 channel + codec 样板代码"的生成器**，底层跑的还是 `BasicMessageChannel` + 二进制 codec。
+
 ## 二、控件 / API 速查表
 
 ### 契约 & 生成（本课新东西）
@@ -154,3 +171,68 @@ expect((await bridge.getDeviceInfo()).model, 'iPhone'); // 强类型，编译期
 5. 补一条测试：`_FakeHost` 覆写 `getBatteryInfo`，断言 bridge 返回的 `BatteryInfo` 正确。
 
 练的就是 **改契约 → 生成 → 三端同步**的完整回路，以及"漏改一端编译就拦住你"的安全感。
+
+## 八、面试高频题（附答案）
+
+> 面试语境：说得出 Pigeon，基本等于告诉面试官"我在**团队**里写过混合开发，不是一个人玩 demo"。这一课的题重点在**为什么要用**和**它到底解决了什么类别的错误**。
+
+**Q1. 有了 MethodChannel 为什么还要 Pigeon？它解决什么问题？**
+
+手写 channel 的三类错误**全都要到运行期才暴露**：① channel 名/方法名字符串打错；② 参数、返回值的字段名或类型对不上；③ 一端改了契约、另外两端漏改。团队一大，这些漂移就是线上事故。
+
+Pigeon 的价值是**把这三类错误提前到编译期**：契约是一份 Dart 文件，生成三端代码——方法变成真方法（打错名字编译报错）、数据变成强类型类（少字段/类型错编译报错）、改契约后**没跟着改的调用点和未实现的原生端直接编译失败**。
+
+一句话记法：**手写 channel 的错误在用户手机上暴露，Pigeon 的错误在你的编译器里暴露。**
+
+**Q2. Pigeon 是新的通信机制吗？底层是什么？**
+
+不是。它是**代码生成器**，底层仍是二进制 channel（生成的通道用 `BasicMessageChannel`）+ 一个继承 `StandardMessageCodec` 的私有 codec，把契约里的数据类注册成自定义 type id（128 起）。
+
+所以前四课的心智全部保留：**仍然是异步的、仍然跑在 Platform 线程、错误仍然是 `PlatformException`、线程纪律一条不少。**
+
+**Q3. `@HostApi` 和 `@FlutterApi` 分别对应什么方向？还有别的吗？**
+
+- `@HostApi` = **Flutter → 原生**（对照 L1）：Dart 侧生成可直接调的类，原生侧生成要你实现的 protocol/interface + `setUp`。
+- `@FlutterApi` = **原生 → Flutter**：原生侧生成可调的类，Dart 侧生成要你实现的抽象类 + `setUp`。
+- 另外还有 `@EventChannelApi`（直接生成 `Stream`，适合持续流）和 `@ProxyApi`（把原生对象包成 Dart 对象，适合多实例场景）。
+
+**Q4. Pigeon 有哪些限制？什么时候不适合用？**
+
+- 契约只能用**受支持的类型**：基础类型、`List`/`Map`、enum、嵌套的数据类。**不支持继承、泛型参数、闭包字段**。
+- **生成物不能手改**（改了下次生成被覆盖），要改行为只能改契约或在自己的薄封装层做。
+- 错误模型仍然只有 `PlatformException`/`FlutterError` 那一套，**没法传自定义异常类型**。
+- 引入了一个**生成步骤**：契约改了必须重跑命令，且生成物要提交进仓库（否则 CI/新同事拉下来编不过）。
+- 不适合的场景：**协议高度动态**（方法名/字段运行期才知道，比如通用的 JSBridge 转发层）——那种反而适合手写一条"万能 channel"。
+
+**Q5. Pigeon、手写 channel、FFI 怎么选？**
+
+| | 适用 | 代价 |
+|---|---|---|
+| **手写 channel** | 就一两个方法、临时验证、动态转发协议 | 字符串魔值 + 手写编解码，靠约定和 code review 维持 |
+| **Pigeon** | **团队协作下的常规选择**：接口稳定、字段多、双端要长期演进 | 多一个生成步骤；契约类型受限 |
+| **FFI（dart:ffi）** | 调 C/C++ 库、需要**同步**调用、极高频计算（图像处理、音视频、加解密） | 没有平台 API（不能调 UIKit/Android SDK）、内存要自己管、崩了就是 native crash |
+
+一句话：**要调系统能力 → channel/Pigeon；要调 C/C++ 或要同步 → FFI。**
+
+**Q6. Pigeon 的桥怎么测试？**
+
+pigeon 27 已经**弃用了旧的"生成 mock host"**（`@HostApi(dartHostTestHandler:)`），官方说明就是让你 *fake 生成的 API*。所以标准写法是**依赖注入 + fake**：
+
+```dart
+class _FakeHost extends DeviceInfoHostApi {
+  @override Future<DeviceInfoData> getDeviceInfo() async => DeviceInfoData(...);
+}
+final bridge = DeviceInfoPigeonBridge(hostApi: _FakeHost());
+```
+
+好处是**桩本身也是强类型的**——对照 L1 手写 `setMockMethodCallHandler` + 手拼 Map，那个桩自己就可能拼错。
+
+页面这种没法注入的地方，退回到在 **Pigeon 私有通道上 `setMockDecodedMessageHandler`**（回复要包成 `[返回值]` 的 List），顺带印证"底层还是 channel"。
+
+**Q7. 改了契约但忘了重跑生成，会发生什么？这为什么正是 Pigeon 的价值？**
+
+什么都不会发生——**契约文件本身不参与编译**，它只是生成器的输入。所以"改契约"这个动作必须配 `dart run pigeon --input ...`。
+
+价值恰恰在重跑之后：生成物一变，**所有没跟上的地方立刻编译报错**（Dart 调用点、iOS 没实现的 protocol 方法、Android 没实现的 interface 方法）。手写 channel 时"改一端漏两端"是静默的、要到运行期才炸；Pigeon 把它变成一次"编译不过"。
+
+工程建议（能说出来很加分）：**把 `dart run pigeon` 挂进 CI，校验生成物与契约是否一致**（生成后 `git diff --exit-code`），防止有人改了契约却提交了旧生成物。

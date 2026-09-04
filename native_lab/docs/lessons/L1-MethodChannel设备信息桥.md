@@ -36,6 +36,12 @@ Dart: invokeMethod 的 Future 完成，拿到解码后的 Map
 
 `setMockMethodCallHandler` 把"假装是原生侧"的闭包挂到 channel 上，于是 Dart 侧逻辑（编码、解码、异常转换、模型解析）全都能在纯 Dart 测试里跑，CI 上不需要模拟器。这是企业里 channel 代码的标准测法，也是面试高频点。
 
+**5. 三条容易被忽略的工程纪律（面试常挖，先记住）。**
+
+- **一条 channel 名只能有一个 handler。** 两端都是"后注册覆盖先注册"——同名 channel 在 `setMethodCallHandler` 第二次注册时，前一个 handler 会被**静默替换**，不报错。所以 channel 名一定要带反域名前缀（本课是 `com.wenbo.native_lab/device_info`），插件更要避开业务命名（L7 会专门讲）。
+- **channel 默认只能在 root isolate 上用。** 你在 `compute()` / 自建 isolate 里 `invokeMethod` 会直接报错。需要在后台 isolate 用 channel，得先在主 isolate 拿 `RootIsolateToken.instance!` 传过去，后台侧 `BackgroundIsolateBinaryMessenger.ensureInitialized(token)` 之后才能用。
+- **没有超时机制**（见上文）。企业里通常在桥接层统一包一层 `.timeout(const Duration(seconds: 3))`，并把 `TimeoutException` 也转成自己的领域错误——**别让 UI 去 catch 三种不同的异常**。
+
 ## 二、控件 / API 速查表
 
 ### Dart 侧
@@ -106,3 +112,82 @@ native_lab/app/test/l1_device_info_test.dart  # 3 桥单测 + 2 页面 widget te
 - 补一条 mock 单测：mock 返回 12345.0，断言 `fetchUptime()` 得到 12345.0。
 
 （提示：`systemUptime` 是 Double，Dart 侧用 `invokeMethod<double>`，注意 codec 里数字类型的映射——这正好是 L2 的引子。）
+
+## 七、面试高频题（附答案）
+
+> 面试语境：**这是整门课被问得最多的一课**。只要简历上写了"混合开发"，`MethodChannel` 原理几乎必问，而且会顺着"链路 → 线程 → 异常 → 测试"一路追问下去。
+
+**Q1. 讲一下 MethodChannel 的实现原理，一次 `invokeMethod` 完整走了哪些环节？**
+
+分五步答（**编码 → 投递 → 分发 → 回执 → 解码**）：
+
+1. Dart 侧 `MethodChannel` 用 **`StandardMethodCodec`** 把「方法名 + 参数」编码成一段 `ByteData`；
+2. 交给 **`BinaryMessenger`**（引擎提供的二进制信使）按 **channel 名**投递，消息从 **UI 线程**跨到 **Platform 线程**；
+3. 引擎按 channel 名找到原生侧注册的 handler，在 **Platform 线程（iOS 主线程）**调用它；
+4. 原生调 `result(...)`，返回值再被 codec 编码成二进制回传；
+5. Dart 侧解码，完成 `invokeMethod` 返回的那个 `Future`。
+
+关键点一句话：**channel 名是路由键，codec 是序列化协议，BinaryMessenger 是唯一的传输层**——`MethodChannel`/`EventChannel`/`BasicMessageChannel` 三者只是 codec 和调用语义不同，传输层是同一个。
+
+**Q2. `MissingPluginException` 怎么排查？你的排查顺序是什么？**
+
+按"从近到远"六步查：
+
+1. **channel 名两端是否逐字符一致**（最常见，建议抽成共享常量而不是各写一遍字符串）；
+2. **方法名是否一致**，原生 `default` 分支是不是回了 `FlutterMethodNotImplemented`；
+3. **原生侧到底注册了没有**——插件忘了 `pub get`、自写的桥忘了在 `AppDelegate`/`configureFlutterEngine` 里注册；
+4. **注册挂在哪台引擎上**（重点）：channel 是**绑引擎**的，add-to-app 里新建的引擎没挂通道就必然是这个异常（L8 实测踩过）；
+5. **当前平台有没有实现**：只写了 iOS，跑 Android/Web 自然没有；
+6. 热重启 / 引擎重建后原生侧是否重新注册。
+
+**Q3. 原生 handler 跑在哪条线程？里面要做耗时操作（读数据库、网络）怎么办？**
+
+跑在 **Platform 线程 = iOS 主线程**。直接在里面做耗时活会**卡住整个 App 的主线程**（原生 UI 和 Flutter 的平台任务一起卡）。
+
+正确做法：handler 里立刻把活派到子线程/子队列，做完**再回到主线程**调 `result`：
+
+```swift
+DispatchQueue.global(qos: .userInitiated).async {
+    let value = expensiveWork()
+    DispatchQueue.main.async { result(value) }   // 回主线程再回执
+}
+```
+
+Kotlin 侧同理（协程/线程池做完 `runOnUiThread { result.success(...) }`）。这条线程纪律 L3（sink 回调）、L4（权限回调里 present）会反复出现。
+
+**Q4. `PlatformException` 和 `MissingPluginException` 有什么区别？分别什么时候出现？**
+
+| | 触发方 | 含义 | 处理 |
+|---|---|---|---|
+| `PlatformException` | 原生主动 `result(FlutterError(code:...))` | **业务失败**（没权限、没电池、参数非法） | 按 `e.code` 分支降级，给用户可操作的提示 |
+| `MissingPluginException` | 引擎找不到 handler，或原生回了 `FlutterMethodNotImplemented` | **接线错误**（工程问题，不是业务问题） | 不该给用户看，应在开发期就被测试/日志抓住 |
+
+面试加分点：**两者要分开 catch**。前者是可预期的业务分支，后者说明"两端契约漂移了"，属于 bug，应该上报监控而不是静默兜底。
+
+**Q5. channel 调用是同步还是异步？能不能做成同步？消息有顺序保证吗？**
+
+**只有异步**，因为 Dart 在 UI 线程、原生在 Platform 线程，跨线程投递天然拿不到同步返回值。真要同步调原生只能绕开 channel 走 **`dart:ffi`**（直接同线程调 C ABI 函数）。
+
+顺序：**同一条 channel 上的消息按发送顺序投递**，原生 handler 也按顺序被调用；但如果原生 handler 内部异步处理（如 Q3 那样派到子线程），**回执顺序就不保证了**——需要有序就自己在参数里带 seq/requestId。
+
+**Q6. `FlutterResult` 有什么使用约束？违反了会怎样？**
+
+- **必须调，且只能调一次。**
+- 不调：Dart 侧那个 `Future` **永久挂起**——UI 上表现为菊花转到天荒地老，且没有任何异常可 catch（channel 本身没有超时）。
+- 调多次：引擎会判定为重复回复（日志报错/断言），Dart 侧只认第一次。
+- L4 的"延迟结果"场景（present 出去等用户操作）最容易踩这两条，所以那一课要专门做**在飞行守卫 + 回完置 nil**。
+
+**Q7. channel 的性能开销有多大？能不能每帧调一次？**
+
+单次调用是一次二进制序列化 + 一次跨线程投递，量级在**微秒到几十微秒**，偶发调用完全无感。但它**不适合高频**（每帧、每个触摸事件）：一是累积开销，二是异步导致的**帧不同步**（数据回来时已经晚了一帧）。
+
+高频场景的替代路径：
+- 数据源在原生但变化频繁 → 让原生**节流/聚合**后再推（L3 EventChannel）；
+- 需要每帧同步的纯计算 → 用 **FFI**；
+- 需要每帧的**图像**（相机/视频）→ 走 **Texture / PlatformView**，别把像素往 channel 上搬。
+
+**Q8. 桥接层代码怎么做单元测试？CI 上没有模拟器也能测吗？**
+
+能。用 `TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, handler)` 把"假原生"挂上去，就能在纯 Dart 环境覆盖：① 是否发出了正确的方法名和参数；② 返回的 Map 是否被正确收成强类型模型；③ 原生回 `FlutterError` 时是否转成了预期的领域异常；④ `MissingPluginException` 的兜底分支。
+
+**测不到的**是原生实现本身（那要么写 XCTest/JUnit，要么模拟器实跑）。回答时点出这条边界，比只说"我用 mock"要显得清楚得多。

@@ -65,6 +65,32 @@ context.coordinator.channel = attachHostChannel(to: vc.binaryMessenger, onClose:
 
 漏了这步的现象很唬人：Flutter 页里"关闭"按钮点了没反应，**用户被困在页面里出不来**。
 
+**6. ★ 两种集成方式：源码集成 vs 产物集成（企业里真正要做的选型）。**
+
+本课用的 `podhelper.rb` 是**源码集成**：宿主工程构建时**当场编译 Flutter module**。它的隐含要求是——**每个 iOS 同事的机器上都要装 Flutter SDK、且版本一致**，CI 也要装。对一个几十人的原生团队来说，这经常是不可接受的。
+
+另一条路是**产物集成**：由 Flutter 团队（或 CI）预先构建出**二进制产物**，原生同学像用普通三方库一样用它。
+
+| | 源码集成（本课） | 产物集成 |
+|---|---|---|
+| iOS 做法 | `podhelper.rb` + `install_all_flutter_pods` | `flutter build ios-framework` → 产出 `Flutter.xcframework` / `App.xcframework` / 各插件 xcframework，走私有 pod 或直接嵌入 |
+| Android 做法 | `include_flutter.groovy`（settings.gradle） | `flutter build aar` → 发到 maven 仓库，Gradle 按坐标依赖 |
+| 原生同事要装 Flutter SDK 吗 | **要** | **不要** |
+| Dart 改动的生效方式 | 重新构建即可 | 要 Flutter 侧**重新发一版产物**，原生升版本号 |
+| 适合 | 混合团队、Flutter 改动频繁、人少 | 原生团队为主、Flutter 模块相对独立、要卡版本 |
+
+**记住这个取舍点**——"你们 add-to-app 是怎么集成的"是这一课最常被追问的问题，能答出两条路和各自代价，比只会说 `pod install` 强得多。
+
+**7. 调试：`flutter run` 在 add-to-app 里不好使，用 `flutter attach`。**
+
+宿主是原生工程，启动入口在 Xcode（或 Android Studio），所以流程变成：
+
+1. 用 **Xcode 跑起宿主 App**（Debug 配置）；
+2. 在 module 目录下执行 `flutter attach`（工具会发现设备上跑着的 Dart VM 并连上）；
+3. 之后**热重载、DevTools、日志**都照常可用。
+
+真机调试时若提示 `NSBonjourServices` / `NSLocalNetworkUsageDescription`，就是这套发现机制需要本地网络权限——补上这两个 Info.plist 键即可（模拟器上可忽略）。
+
 ## 二、控件 / API 速查表
 
 | API | 说明 | 坑 |
@@ -76,6 +102,8 @@ context.coordinator.channel = attachHostChannel(to: vc.binaryMessenger, onClose:
 | `UIViewControllerRepresentable` | SwiftUI ↔ UIKit 桥 | Flutter 侧是 UIKit，SwiftUI 必须包一层 |
 | `vc.binaryMessenger` | 该 VC 所属引擎的信使 | **通道要挂在对应引擎上** |
 | `ENABLE_USER_SCRIPT_SANDBOXING` | Xcode 15+ 新工程默认 YES | **必须改 NO**，否则 Flutter 的 embed 脚本被沙箱拦住（见下） |
+| `flutter build ios-framework` | 产出 `Flutter.xcframework`/`App.xcframework`/插件 xcframework | **产物集成**路线的入口（Android 对应 `flutter build aar`）；Dart 改了要重新发版 |
+| `flutter attach` | 连上正在运行的宿主 App，恢复热重载/DevTools | add-to-app 里 `flutter run` 不适用，先用 Xcode 跑宿主再 attach |
 
 ### 本课实际踩到的三个环境坑
 
@@ -141,3 +169,74 @@ L8/L9 是 iOS 专属场景（宿主就是 iOS 工程），Android 侧不实现�
 2. 把 Flutter 页里的 `automaticallyImplyLeading: false` 去掉，看 Flutter 自己画的返回按钮点了会发生什么（提示：它 pop 的是 Flutter 的栈，不是原生的）。
 
 这正是**混合栈**最常见的坑：两套路由各管各的，边界上要么手动协调、要么用 flutter_boost 这类框架统一。L9 会把"原生驱动路由"这一半做出来。
+
+## 八、面试高频题（附答案）
+
+> 面试语境：**这是最能区分"做过真项目"和"写过 demo"的一课**。国内大厂的混合开发岗，八成会问 add-to-app；而且问法很实际——"你们老 App 是怎么把 Flutter 接进去的""包大了多少""原生同学要不要装 Flutter"。
+
+**Q1. 什么是 add-to-app？它和 Flutter App、插件有什么区别？**
+
+add-to-app 是**把 Flutter 作为一个模块接进已有的原生工程**，角色彻底对调：
+
+| | Flutter App | 插件 | **module（add-to-app）** |
+|---|---|---|---|
+| 宿主 | Flutter | 都不是（被依赖的库） | **原生 App** |
+| 依赖方向 | Flutter 用原生能力 | App 依赖插件 | **原生 App 依赖 module** |
+| 产物 | 一个完整 App | 可复用能力包 | 一段可嵌入的 Flutter 内容 |
+
+**为什么企业需要它**：没有公司会为了用 Flutter 把跑了五年的几十万行原生 App 推倒重写。现实路径永远是"新模块用 Flutter 写，老代码不动"。
+
+**Q2. iOS 侧怎么接？`install_all_flutter_pods` 到底做了什么？**
+
+Podfile 里三件事：指明 module 路径 → `load podhelper.rb` → target 里 `install_all_flutter_pods`。
+
+这一行替你做的事：把 **`Flutter.framework`（引擎）**、**`App.framework`（Dart 产物）**、以及 module 依赖的**所有插件**都变成 Pod 依赖塞进宿主 target，并为 Debug/Profile/Release 各配好产物路径和构建阶段脚本（那个负责 rsync 产物进 `.app` 的 "Embed Flutter Build" 脚本就是它加的）。
+
+之后**必须用 `.xcworkspace` 打开**——CocoaPods 通例，不是 Flutter 特有。
+
+**Q3.（高频追问）原生同事不想装 Flutter SDK，怎么办？**
+
+改用**产物集成**：由 Flutter 侧/CI 跑 `flutter build ios-framework` 产出 `Flutter.xcframework` + `App.xcframework` + 插件 xcframework，发成私有 pod（Android 侧对应 `flutter build aar` 发 maven）。原生同学像用普通三方库一样依赖它，**不需要装 Flutter SDK**。
+
+代价是 Dart 每次改动都要**重新发一版产物**、原生升版本号——所以选型取决于"Flutter 改得频不频繁""团队构成是什么样"。能把这个取舍讲清楚，基本就答满了。
+
+**Q4. 接入 Flutter 后包体积涨多少？构建时间呢？**
+
+包体积：主要是引擎（`Flutter.framework` / `libflutter.so`）+ ICU 数据 + 你的 Dart AOT 产物，Release 下**通常是 10MB 上下的量级**（随架构、资源和插件数量变化，要以实测为准）。减包手段：控制 ABI、`--split-debug-info`、`--obfuscate`、资源按需下载、少引不必要的插件。
+
+构建时间：源码集成下每次原生构建都要走一遍 Dart 编译（Release 的 AOT 尤其慢），这也是大团队转向产物集成的动因之一。
+
+**Q5. SwiftUI 宿主怎么装 `FlutterViewController`？**
+
+`FlutterViewController` 是 UIKit 的，SwiftUI 里必须用 **`UIViewControllerRepresentable`** 包一层，再用 `.fullScreenCover` / `NavigationLink` 等呈现。
+
+同理，纯 SwiftUI 工程没有 `AppDelegate`，要用 **`@UIApplicationDelegateAdaptor`** 桥到 UIKit 生命周期——官方文档里那段写在 `AppDelegate.didFinishLaunching` 里的引擎预热代码（L9），在 SwiftUI 工程里就落在这儿。
+
+**Q6. 冷启动打开 Flutter 页时的白屏是怎么来的？怎么优化？**
+
+不传 `engine:` 的 `FlutterViewController` 会**当场新建并启动引擎**：起 Dart VM → 加载 `App.framework` → 跑 `main()` → 建 widget 树 → 首帧上屏。这段时间屏幕上没有内容，就是白屏。
+
+优化手段，按性价比排：
+1. **引擎预热**（L9 的主角）：App 启动时就 `run()` 好一台常驻引擎，打开页面时复用 → 秒开；
+2. **占位/过渡**：原生侧先显示一张与 Flutter 首屏一致的占位图或骨架屏，避免"白"；
+3. **首屏轻量化**：Dart 侧首帧别做重活（网络、大列表），把初始化推迟到首帧之后；
+4. 折中方案：**进入某个业务域时才预热**，离开时释放，兼顾内存。
+
+**Q7.（本课实测踩到）为什么冷启动路径必须再挂一次 MethodChannel？**
+
+因为 **channel 是绑在引擎上的，不是全局的**。冷启动每次都新建引擎，它和预热引擎是两个世界——在 A 引擎上挂的 handler，B 引擎里的 Dart 调不到（表现为调用石沉大海或 `MissingPluginException`）。
+
+现象很唬人：Flutter 页里的"关闭"按钮点了没反应，**用户被困在页面里出不去**。所以工程上的正确做法是把"挂通道"抽成一个函数（本课的 `attachHostChannel(to:)`），**冷启动路径和预热路径都调它**，从结构上杜绝漏挂。
+
+**Q8. 混合栈里两套路由怎么协调？**
+
+原生有自己的导航栈（`UINavigationController`/`NavigationStack`），Flutter 有自己的 `Navigator`，**两者互不知情**。典型症状：Flutter 页里点自己画的返回按钮，pop 的是 Flutter 的栈，原生这一层纹丝不动（页面还盖着）；或者手势返回归谁管说不清楚。
+
+三种应对：
+1. **约定边界**（最简单，本课做法）：Flutter 侧不画返回，**谁 present 的谁负责 dismiss**，需要退出就通过通道通知宿主；
+2. **原生驱动路由**：宿主通过通道让 Flutter 侧 `Navigator` 跳转（L9 做的那件事）；
+3. **上框架**：`flutter_boost` 这类混合栈框架把两套路由统一成一套 API——收益是省心，代价是引入一个较重的、与引擎耦合的第三方依赖，升级 Flutter 时要一起等它适配。
+
+**Q9. add-to-app 怎么调试和热重载？**
+
+`flutter run` 不适用（启动入口在原生工程）。正确姿势：**Xcode/Android Studio 跑起宿主 App → 在 module 目录执行 `flutter attach`**，工具连上设备里的 Dart VM，之后热重载、DevTools、日志全都照常。真机上若要求本地网络权限，补 `NSBonjourServices` / `NSLocalNetworkUsageDescription` 两个 Info.plist 键。
