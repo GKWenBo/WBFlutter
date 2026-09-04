@@ -1,6 +1,11 @@
 # Flutter 测试体系全景图
 
-结合你的技术栈（Riverpod 3.x + Dio + drift + go_router），按"金字塔"从下到上梳理。2026 年主流实践与你可能熟悉的旧教程（golden_toolkit、mockito）已经有代际差异，先说结论再展开。
+> **适用版本**：Flutter 3.x / Riverpod 3.x
+> **技术栈前提**：Riverpod 3.x + Dio + drift + go_router
+> **配套阅读**：[Mocktail 使用指南](Mocktail使用指南.md)（第六节的展开）、[Riverpod 实现原理](Riverpod实现原理.md)（第七节的原理依据）
+> **工程实战**：[WanShop M11 · 测试](../wan_android/docs/lessons/M11-测试.md)
+
+按"金字塔"从下到上梳理。当前主流实践与较早的教程（golden_toolkit、mockito）已有代际差异，先说结论再展开。
 
 ## 一、测试金字塔 & iOS 对照
 
@@ -12,7 +17,9 @@
 | 集成测试        | `integration_test`              | ~10%           | `XCUITest`                               | 分钟级，需真机/模拟器 |
 | E2E（原生交互） | `patrol`                        | ~5%            | `XCUITest` + Springboard 操作            | 分钟级                |
 
-2026 年生产团队普遍采用 4 层金字塔：60% 单元测试 / 25% Widget 测试 / 10% 集成测试 / 5% E2E。⚠️ 这个比例是**用例数量**占比，不是时间占比——集成测试单条耗时可能是单元测试的百倍。
+常见的经验配比是 4 层金字塔：60% 单元测试 / 25% Widget 测试 / 10% 集成测试 / 5% E2E。
+
+> ⚠️ 这个比例是**用例数量**占比，不是时间占比——集成测试单条耗时可能是单元测试的百倍。也不是硬指标，具体按项目的风险分布调整。
 
 ------
 
@@ -36,7 +43,7 @@ test('并发 401 时只触发一次 refresh，其余请求等待 Completer', () 
 });
 ```
 
-这一层最适合覆盖你已经搭好的 **sealed exception 层级、`Result<T>` 类型、重试退避算法**——纯逻辑、无 I/O、跑得飞快，应该占你测试套件的大头。
+这一层最适合覆盖 WanShop 里的 **sealed exception 层级、`Result<T>` 类型、重试退避算法**——纯逻辑、无 I/O、跑得飞快，应该占测试套件的大头。
 
 ------
 
@@ -69,9 +76,9 @@ testWidgets('登录按钮在表单无效时禁用', (tester) async {
 
 对应 iOS 生态里 pointfree 的 `SnapshotTesting`，把 Widget 渲染成图片和基准图逐像素比对。
 
-2026 年的共识是：Golden 测试有价值，但应限制在设计系统的基础组件上，而不是整屏截图——针对 PrimaryButton、ProductCard 这类原子组件的 Golden 测试才是可持续的，整个 CheckoutScreen 三种状态的截图测试则是维护负担。
+**用在哪：** Golden 测试有价值，但应限制在设计系统的基础组件上，而不是整屏截图。针对 `PrimaryButton`、`ProductCard` 这类原子组件的 Golden 测试是可持续的；整个 `CheckoutScreen` 三种状态的截图测试则是维护负担——业务页面改动频繁，基准图会天天需要更新，最后没人认真看 diff。
 
-工具选择上有一个明显的代际更替：alchemist 已在 2025 年成为 Golden 测试的标准工具，取代了已停止维护的 golden_toolkit。alchemist 由 Betterment 与 Very Good Ventures 合作开发，提供了分组场景、跨平台适配等实用功能和文档。如果你在跟着较老的教程学（很多还在讲 golden_toolkit），需要留意这个替换。
+**用什么：** 工具选择上有一个明显的代际更替——`golden_toolkit` 已停止维护，社区主流迁移到 **alchemist**（Betterment 与 Very Good Ventures 合作开发），提供分组场景、跨平台适配等能力。较老的教程很多还在讲 golden_toolkit，需要留意这个替换。
 
 ```dart
 goldenTest(
@@ -94,9 +101,9 @@ goldenTest(
 
 flutter_driver 已被废弃，官方现在推荐使用 integration_test 包，跑在真机/模拟器上，测试完整用户流程。
 
-但 `integration_test` 有个天生短板：它测不到**原生层面的交互**——系统权限弹窗、Face ID、支付面板这些不属于 Flutter widget 树的东西。这时候要用 Patrol：
+但 `integration_test` 有个天生短板：它测不到**原生层面的交互**——系统权限弹窗、Face ID、支付面板这些不属于 Flutter widget 树的东西。
 
-Patrol 是 2026 年最好的 Flutter 原生测试工具，如果团队想留在 Dart 生态内工作，Patrol 是正确选择，专门用于处理权限弹窗、生物识别、支付面板等原生 OS 交互。
+这时候要用 **Patrol**。它在 `integration_test` 之上加了一层原生自动化桥接，专门处理权限弹窗、生物识别、支付面板等原生 OS 交互。想留在 Dart 生态内写这类用例，目前它基本是唯一成熟的选择（另一条路是直接写 XCUITest / Espresso，但要跳出 Dart）。
 
 ```dart
 patrolTest('登录后触发 Face ID 授权', ($) async {
@@ -108,20 +115,22 @@ patrolTest('登录后触发 Face ID 授权', ($) async {
 });
 ```
 
-对你的 **add-to-app 场景**尤其相关：Flutter 页面内嵌在 iOS `UINavigationController` 里时，纯 `integration_test` 覆盖不到宿主 App 侧的原生跳转，Patrol 能桥接过去验证跨端导航。
+对 **add-to-app 场景**尤其相关：Flutter 页面内嵌在 iOS `UINavigationController` 里时，纯 `integration_test` 覆盖不到宿主 App 侧的原生跳转，Patrol 能桥接过去验证跨端导航。参见 [NativeLab L8/L9 · add-to-app](../native_lab/docs/lessons/README.md)。
 
 ------
 
 ## 六、Mock 工具：mocktail vs mockito
 
-mockito 曾长期是默认选择，但 2026 年的共识已转向 mocktail：表达能力相同，但不需要代码生成、不需要 build_runner、不需要注解，测试文件写完就能直接跑。
+mockito 曾长期是默认选择，新项目现在普遍转向 mocktail：表达能力相同，但不需要代码生成、不需要 `build_runner`、不需要注解，测试文件写完就能直接跑。
+
+> 原理层面的差异（`noSuchMethod` 动态派发 vs 代码生成）和完整 API 用法，见 [Mocktail 使用指南](Mocktail使用指南.md)。
 
 |                 | mockito                            | mocktail                                            |
 | --------------- | ---------------------------------- | --------------------------------------------------- |
 | 代码生成        | 需要 `build_runner`                | 不需要                                              |
 | Null Safety     | 后补支持                           | 原生设计                                            |
 | 语法            | `@GenerateMocks([Dio])` + 生成文件 | 直接 `class MockDio extends Mock implements Dio {}` |
-| 2026 新项目推荐 | ❌ 遗留项目维护用                   | ✅                                                   |
+| 新项目推荐      | ❌ 遗留项目维护用                   | ✅                                                   |
 
 ```dart
 class MockDio extends Mock implements Dio {}
@@ -139,31 +148,37 @@ void main() {
 }
 ```
 
-⚠️ 对你已经写好的 Dio 拦截器栈，直接 mock `Dio` 类做单元测试即可；如果想测"真实网络层但不发真请求"，可以用 `http_mock_adapter` 挂到 `Dio` 的 `HttpClientAdapter` 上，两者场景不同：mock `Dio` 测拦截器逻辑本身，mock adapter 测端到端的请求/响应契约。
+⚠️ 对已经写好的 Dio 拦截器栈，直接 mock `Dio` 类做单元测试即可；如果想测"真实网络层但不发真请求"，可以用 `http_mock_adapter` 挂到 `Dio` 的 `HttpClientAdapter` 上，两者场景不同：mock `Dio` 测拦截器逻辑本身，mock adapter 测端到端的请求/响应契约。
 
 ------
 
-## 七、状态管理专项测试（你的核心痛点）
+## 七、状态管理专项测试 ⭐
 
 ### Riverpod：`ProviderContainer`，不需要 Widget 树
 
-Riverpod 的依赖图独立于 Widget 树存在（这也是你已经理解的核心原理），所以测试 Provider 逻辑根本不需要 `pumpWidget`：
+Riverpod 的依赖图[独立于 Widget 树存在](Riverpod实现原理.md#四providerscope图和-widget-树是怎么接起来的)，所以测试 Provider 逻辑根本不需要 `pumpWidget`：
 
 ```dart
-test('AsyncNotifier 加载失败时返回 AsyncError', () async {
+test('AsyncNotifier 加载失败时进入 AsyncError', () async {
+  when(() => mockDio.get(any())).thenThrow(DioException(...));
+
   final container = ProviderContainer(
     overrides: [dioProvider.overrideWithValue(mockDio)],
   );
-  addTearDown(container.dispose); // ⚠️ 对应 dispose() 手动清理，防止跨测试状态泄漏
+  addTearDown(container.dispose); // ⚠️ 必须清理，否则跨测试状态泄漏
 
-  when(() => mockDio.get(any())).thenThrow(DioException(...));
+  // 等待 future 完成；预期抛错，所以断言异常而不是吞掉它
+  await expectLater(
+    container.read(userProfileProvider.future),
+    throwsA(isA<DioException>()),
+  );
 
-  final result = await container.read(userProfileProvider.future).catchError((_) => null);
-  final state = container.read(userProfileProvider);
-  
-  expect(state, isA<AsyncError>());
+  // future 结算后，provider 的同步状态才落到 AsyncError
+  expect(container.read(userProfileProvider), isA<AsyncError>());
 });
 ```
+
+> ⚠️ **Riverpod 3.x 注意**：provider build 抛异常后**默认会指数退避重试**。测这类失败路径时，如果断言的是"只请求了一次"，需要在 provider 上关掉 `retry`，否则 `verify(...).called(1)` 会随重试时机变得 flaky。
 
 ### Bloc：`bloc_test` 包
 

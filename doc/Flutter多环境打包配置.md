@@ -1,6 +1,10 @@
 # Flutter iOS / Android 多环境打包配置指南
 
-面向 iOS 背景读者的实操手册。目标：**一套代码打出 dev / staging / prod 三种包，两端配置保持同步**。以 WanShop 工程（`wan_android`）真实包名为例。
+> **适用版本**：Flutter 3.x / AGP 8.x（Kotlin DSL）/ Xcode 16+
+> **示例工程**：WanShop（`wan_android`）的真实包名
+> **相关文档**：[Flutter 国际化](Flutter国际化.md)、[WanShop M12 · 发布与平台集成](../wan_android/docs/lessons/M12-发布与平台集成.md)
+
+面向 iOS 背景读者的实操手册。目标：**一套代码打出 dev / staging / prod 三种包，两端配置保持同步**。
 
 > 本工程当前的真实身份：
 > - Android `applicationId = com.wenbo.wan_android`
@@ -269,8 +273,14 @@ flutter build ipa --flavor prod --dart-define=FLAVOR=dev
 
 ## 6. 本机环境注意（国内网络）
 
-- **首次原生构建会拉大依赖**，本机 7890 代理对大文件不稳。相关镜像/JDK/Gradle 配置见记忆与 `android/` 下的 gradle 配置；命令行构建建议 `env -u HTTP_PROXY -u HTTPS_PROXY` 跑。
-- **iOS 模拟器 release 构建有 lipo 坑**：`flutter build ios --simulator` 可能秒挂；真机 Archive 正常，或调试用 `flutter run`。
+- **首次原生构建会拉大依赖**，本机 7890 代理对大文件不稳，容易在下载中途断掉。镜像 / JDK / Gradle 的实际配置见 `android/gradle.properties` 与 `android/build.gradle.kts`；命令行构建建议绕开代理跑：
+
+  ```bash
+  env -u HTTP_PROXY -u HTTPS_PROXY flutter build appbundle --flavor prod --dart-define=FLAVOR=prod
+  ```
+
+- **JDK 选择**：`JAVA_HOME` 指向 Android Studio 自带的 JBR，避免与系统 JDK 版本冲突。
+- **iOS 模拟器 release 构建有 lipo 坑**：`flutter build ios --simulator` 可能秒挂。真机 Archive 正常；本地调试改用 `flutter run`，或构建时限定 `arm64` 单架构绕过。
 - **keystore / key.properties / 证书私钥永不入库**（已 gitignore）。团队协作用 CI 的加密 secret 注入。
 
 ---

@@ -1,6 +1,10 @@
 # Flutter 国际化（i18n）操作指南
 
-面向 iOS 背景读者的实操手册。以 WanShop 工程（`wan_android`）的真实配置为例，讲**从零搭起、日常维护、踩坑规避**的完整流程。
+> **适用版本**：Flutter 3.x（`flutter gen-l10n` 内建工具链）
+> **示例工程**：WanShop（`wan_android`）的真实配置
+> **相关文档**：[Flutter 多环境打包配置](Flutter多环境打包配置.md)、[Flutter 测试体系](Flutter测试体系.md)（§9 的测试语言切换与其呼应）
+
+面向 iOS 背景读者的实操手册，讲**从零搭起、日常维护、踩坑规避**的完整流程。
 
 > 一句话总览：**改 `.arb` → 跑 `gen-l10n` → 页面里用 `l10n.xxx`**。
 > delegate、supportedLocales 第一次接好后就不用再动。
