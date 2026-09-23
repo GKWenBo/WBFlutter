@@ -7,7 +7,7 @@
 
 ### 环境搭建
 
-#### iOS
+#### Mac
 
 - 下载Flutter SDK
 
