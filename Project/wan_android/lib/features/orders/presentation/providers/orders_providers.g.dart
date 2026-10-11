@@ -8,89 +8,6 @@ part of 'orders_providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-
-@ProviderFor(ordersStorage)
-final ordersStorageProvider = OrdersStorageProvider._();
-
-final class OrdersStorageProvider
-    extends $FunctionalProvider<OrdersStorage, OrdersStorage, OrdersStorage>
-    with $Provider<OrdersStorage> {
-  OrdersStorageProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'ordersStorageProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$ordersStorageHash();
-
-  @$internal
-  @override
-  $ProviderElement<OrdersStorage> $createElement($ProviderPointer pointer) =>
-      $ProviderElement(pointer);
-
-  @override
-  OrdersStorage create(Ref ref) {
-    return ordersStorage(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(OrdersStorage value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<OrdersStorage>(value),
-    );
-  }
-}
-
-String _$ordersStorageHash() => r'00f23647981ac0404bc3591346b96c959dd3147c';
-
-@ProviderFor(addressStorage)
-final addressStorageProvider = AddressStorageProvider._();
-
-final class AddressStorageProvider
-    extends $FunctionalProvider<AddressStorage, AddressStorage, AddressStorage>
-    with $Provider<AddressStorage> {
-  AddressStorageProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'addressStorageProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$addressStorageHash();
-
-  @$internal
-  @override
-  $ProviderElement<AddressStorage> $createElement($ProviderPointer pointer) =>
-      $ProviderElement(pointer);
-
-  @override
-  AddressStorage create(Ref ref) {
-    return addressStorage(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(AddressStorage value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<AddressStorage>(value),
-    );
-  }
-}
-
-String _$addressStorageHash() => r'9868284d5b2bd04bc9ddee7e63f19cd182740099';
-
 /// 上次保存的默认地址（结算页用来预填表单）。
 /// 一次性异步读取，没有"修改后要通知谁"的需求，所以一个函数 provider 就够，
 /// 不用 Notifier——下单成功后 invalidate 一下让它下次重读即可。
@@ -171,7 +88,7 @@ final class OrdersProvider extends $AsyncNotifierProvider<Orders, List<Order>> {
   Orders create() => Orders();
 }
 
-String _$ordersHash() => r'0339f3bf6615f499fb6fb0662c80086b2a0ff6be';
+String _$ordersHash() => r'70038ee0021aadea1b27e6bb2be0371ccd3beef6';
 
 /// 订单列表：第三个 AsyncNotifier + keepAlive（Cart/Favorites/Orders 同一模式，
 /// 到这里你应该已经能把这套"异步初始化的全局状态"当模板默写了）。

@@ -1,9 +1,9 @@
-// 纯 Dart 单元测试 ≈ iOS 的 XCTest。不启模拟器，直接验证逻辑，毫秒级。
-// 这里验证 Product 的 JSON 解析（≈ 测你的 Codable 解码）。
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wan_android/features/products/data/sample_products.dart';
 import 'package:wan_android/features/products/domain/product.dart';
+
+// 纯 Dart 单元测试 ≈ iOS 的 XCTest。不启模拟器，直接验证逻辑，毫秒级。
+// 这里验证 Product 的 JSON 解析（≈ 测你的 Codable 解码）。
 
 void main() {
   test('Product.fromJson 正确解析字段（含 int→double、可空、计算属性）', () {

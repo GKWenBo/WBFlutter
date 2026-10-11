@@ -16,10 +16,20 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final token = await _storage.readAccessToken();
-    if (token != null) {
-      options.headers['Authorization'] = 'Bearer $token';
+    try {
+      final token = await _storage.readAccessToken();
+      if (token != null) options.headers['Authorization'] = 'Bearer $token';
+      handler.next(options);
+    } catch (error, stackTrace) {
+      // Keychain 失败必须结束拦截器链，不把异常遗留在 async void 回调。
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          error: error,
+          stackTrace: stackTrace,
+          message: '无法读取登录凭证',
+        ),
+      );
     }
-    handler.next(options); // 必须放行，否则请求永远发不出去（呼应 LoggingInterceptor 的坑）
   }
 }

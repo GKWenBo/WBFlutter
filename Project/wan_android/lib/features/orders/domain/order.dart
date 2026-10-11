@@ -1,6 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 
-import '../../cart/domain/cart_item.dart';
+import '../../cart/models.dart';
 
 part 'order.g.dart';
 

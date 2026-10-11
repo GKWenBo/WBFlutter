@@ -1,16 +1,18 @@
-// 测试首页的"离线缓存兜底"：网络成功 → 写缓存；网络失败 → 读缓存降级；
-// 网络失败且没缓存 → 维持错误态。
-// 依然是 ProviderContainer + fake repository（呼应 widget_test 的 override 手法）。
-
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wan_android/core/error/failure.dart';
 import 'package:wan_android/features/products/data/product_list_response.dart';
 import 'package:wan_android/features/products/data/products_cache.dart';
+import 'package:wan_android/features/products/data/products_dependencies.dart';
 import 'package:wan_android/features/products/data/products_repository.dart';
 import 'package:wan_android/features/products/domain/product.dart';
 import 'package:wan_android/features/products/presentation/providers/products_providers.dart';
+
+// 测试首页的"离线缓存兜底"：网络成功 → 写缓存；网络失败 → 读缓存降级；
+// 网络失败且没缓存 → 维持错误态。
+// 依然是 ProviderContainer + fake repository（呼应 widget_test 的 override 手法）。
 
 Product _makeProduct(int id) => Product(
   id: id,
@@ -28,8 +30,12 @@ Product _makeProduct(int id) => Product(
 
 /// 网络正常的假仓库：固定返回两个商品。
 class _OkRepository extends ProductsRepository {
+  _OkRepository() : super(dio: Dio());
   @override
-  Future<ProductListResponse> fetchProducts({int limit = 20, int skip = 0}) async {
+  Future<ProductListResponse> fetchProducts({
+    int limit = 20,
+    int skip = 0,
+  }) async {
     final products = [_makeProduct(1), _makeProduct(2)];
     return ProductListResponse(
       products: products,
@@ -42,6 +48,7 @@ class _OkRepository extends ProductsRepository {
 
 /// 断网的假仓库：一调就抛 NetworkException（≈ 飞行模式）。
 class _OfflineRepository extends ProductsRepository {
+  _OfflineRepository() : super(dio: Dio());
   @override
   Future<ProductListResponse> fetchProducts({int limit = 20, int skip = 0}) {
     throw const NetworkException('无法连接服务器，请检查网络');
@@ -67,9 +74,13 @@ void main() {
     final container = _makeContainer(_OkRepository());
     addTearDown(container.dispose);
 
-    final products = await container.read(productListProvider.future);
+    final feed = await container.read(productListProvider.future);
+    final products = feed.products;
     expect(products, hasLength(2));
-    expect(container.read(productListProvider.notifier).isFromCache, isFalse);
+    expect(
+      container.read(productListProvider).requireValue.isFromCache,
+      isFalse,
+    );
 
     // build() 里的 cache.save 是不 await 的后台副作用，
     // 等一个事件循环让它跑完（≈ XCTest 里等一拍再断言异步副作用）。
@@ -86,13 +97,14 @@ void main() {
     final container = _makeContainer(_OfflineRepository());
     addTearDown(container.dispose);
 
-    final products = await container.read(productListProvider.future);
+    final feed = await container.read(productListProvider.future);
+    final products = feed.products;
     expect(products, hasLength(1));
     expect(products.first.id, 9);
 
-    final notifier = container.read(productListProvider.notifier);
-    expect(notifier.isFromCache, isTrue);
-    expect(notifier.hasMore, isFalse); // 离线数据不该再触发上拉加载
+    final feedState = container.read(productListProvider).requireValue;
+    expect(feedState.isFromCache, isTrue);
+    expect(feedState.hasMore, isFalse); // 离线数据不该再触发上拉加载
   });
 
   test('网络失败且无缓存：错误照常抛出（页面仍走 error 态）', () async {

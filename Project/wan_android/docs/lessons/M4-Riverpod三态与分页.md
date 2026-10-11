@@ -26,56 +26,40 @@ Notifier 的 `build()` 返回 `Future`，Riverpod 自动把它包成 `AsyncValue
 @riverpod
 class ProductList extends _$ProductList {
   @override
-  Future<List<Product>> build() async {
-    final page = await ref.watch(productsRepositoryProvider).fetchProducts(...);
-    return page.products;           // 请求中→loading，成功→data，抛错→error，全自动
+  Future<ProductFeedState> build() async {
+    final page = await ref.watch(productsRepositoryProvider).fetchProducts();
+    return ProductFeedState(products: page.products,
+      nextSkip: page.skip + page.products.length,
+      hasMore: page.products.isNotEmpty && page.hasMore);
   }
 }
 ```
 
-页面侧用 `.when` 把三态一次渲染，**不用自己维护 `isLoading` 布尔标志**：
-
-```dart
-ref.watch(productListProvider).when(
-  loading: () => CircularProgressIndicator(),
-  error:   (e, _) => ErrorView(e),
-  data:    (products) => Grid(products),
-);
-```
-
-- 这是 Riverpod 相比手写 ViewModel 最大的省心点：**loading/error 态是内建的，不是你手动切的**。
-  iOS 里你得自己 `enum State { loading, loaded, error }` + 到处 switch，这里白送。
+页面订阅 `AsyncValue<ProductFeedState>`，用 `.when` 处理首屏三态。
+`data` 分支读取 `feed.products`、`feed.isFromCache`、`feed.isLoadingMore` 和
+`feed.appendError`；首屏加载与追加加载是不同状态，可以保留旧列表并展示分页重试。
 
 ### 3. DI 用 provider 提供依赖，测试可 override ⭐⭐⭐
 
 ```dart
-@riverpod
-ProductsRepository productsRepository(Ref ref) => ProductsRepository();
+final productsRepositoryProvider = Provider<ProductsRepository>(
+  (ref) => ProductsRepository(dio: ref.watch(dioProvider)),
+);
 ```
 
-- Repository/Cache 都做成 provider，`ProductList.build()` 里 `ref.watch(productsRepositoryProvider)` 拿。
-- 好处在 M11 兑现：测试里 `ProviderScope(overrides: [productsRepositoryProvider.overrideWith(...)])`
-  就能整包换成 mock——这是 M3 埋的"依赖注入"伏笔的收口。
+装配在 `data/products_dependencies.dart`，状态仍在 presentation/providers。
+M4 的页面状态继续使用代码生成；简单装配使用普通 Provider，不需要生成另一套类型。
+测试可覆盖 Repository、Cache，也可只覆盖 `dioProvider` 或 `authStorageProvider`。
 
 ### 4. 分页 = 手动合并 state，`hasMore`/`isLoadingMore` 防重入 ⭐⭐
 
-```dart
-Future<void> loadMore() async {
-  if (_isLoadingMore || !_hasMore) return;      // 防抖 + 防越界
-  final current = state.asData?.value;
-  if (current == null) return;                   // 首屏还没好，先不加载
-  _isLoadingMore = true;
-  try {
-    final page = await repo.fetchProducts(skip: current.length);  // 从已有条数续取
-    _hasMore = page.hasMore;
-    state = AsyncData([...current, ...page.products]);            // 手动追加合并
-  } finally { _isLoadingMore = false; }
-}
-```
+加载更多先发布 `isLoadingMore: true`，用 `nextSkip` 请求下一页。
+并发触发共享同一项 Future；成功发布合并后的状态，失败保留商品并设置 `appendError`。
+空页将 `hasMore` 设为 false，避免无休止请求。
 
-- 首屏（loading→data）是 `build()` 全自动；**"加载更多"是手动改 `state`**——把新页 append 到旧列表。
-- `_isLoadingMore`（防连点重复请求）+ `_hasMore`（到底了别再请求）是分页两个必备闸门。
-- 页面侧：滚动到接近底部（`pixels >= maxScrollExtent - 300`）时 `ref.read(p.notifier).loadMore()`。
+每次 `build()` 增加请求代次。分页返回后只有代次匹配且 `ref.mounted` 时才发布结果；
+旧请求的 finally 也不能清掉新请求标志。这和 iOS 中用 loadID 拒绝迟到响应是同一机制。
+下拉刷新仍使用 `ref.refresh(productListProvider.future)`，滚动监听仍调用 `loadMore()`。
 
 ### 5. 下拉刷新用 `ref.refresh(p.future)`；重试用 `ref.invalidate(p)` ⭐⭐
 
@@ -113,9 +97,9 @@ Future<void> loadMore() async {
 ```
 lib/features/products/presentation/
   providers/products_providers.dart
-    productsRepositoryProvider / productsCacheProvider   DI（可 override，M11 用）
+    装配 provider 已迁到 data/products_dependencies.dart（可 override，M11 用）
     productProvider(id)                                  family：单商品详情（M5 详情页用）
-    ProductList（Notifier）：build 首屏三态 + loadMore 分页 + hasMore/isFromCache
+    ProductList（Notifier）：build 首屏三态 + loadMore 分页；输出 ProductFeedState
   home_page.dart   ConsumerStatefulWidget：watch 三态 + ScrollController 上拉 +
                    RefreshIndicator 下拉 + .when spread 进 CustomScrollView
 入口：main.dart 的 ProviderScope（M0 就占位了，这一课真正开始用）
@@ -132,13 +116,13 @@ lib/features/products/presentation/
 2. 用了 `AsyncValue`，页面为什么不用自己维护 `isLoading` 布尔？
 3. 首屏加载和"加载更多"，一个是自动一个是手动，分别体现在哪？
 4. 下拉刷新为什么必须 `await`/return `ref.refresh(p.future)` 这个 Future？
-5. `_isLoadingMore` 和 `_hasMore` 各防的是什么问题？去掉会怎样？
+5. 为什么分页元信息也要放进状态？如何防止刷新后的旧分页结果污染新列表？
 6. Repository 做成 provider，给 M11 的测试带来什么便利？
 
 ---
 
 ## 五、练习
 
-给首页加一个"空态"：当接口返回 0 条商品时，`data` 分支里判断 `products.isEmpty`
+给首页加一个"空态"：当接口返回 0 条商品时，`data` 分支里判断 `feed.products.isEmpty`
 显示一个"暂无商品"占位，而不是空白网格。体会 `AsyncValue.when` 的 data 分支里
 仍然要处理"成功但没数据"这第四种情况（三态之外的边界）。

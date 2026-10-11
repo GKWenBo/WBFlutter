@@ -1,7 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../products/domain/product.dart';
-import '../../../products/presentation/providers/products_providers.dart';
+import '../../../products/api.dart';
+import '../../../products/models.dart';
 
 part 'search_providers.g.dart';
 

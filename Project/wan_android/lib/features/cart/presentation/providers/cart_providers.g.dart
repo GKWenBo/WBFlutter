@@ -8,48 +8,6 @@ part of 'cart_providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-
-@ProviderFor(cartStorage)
-final cartStorageProvider = CartStorageProvider._();
-
-final class CartStorageProvider
-    extends $FunctionalProvider<CartStorage, CartStorage, CartStorage>
-    with $Provider<CartStorage> {
-  CartStorageProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'cartStorageProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$cartStorageHash();
-
-  @$internal
-  @override
-  $ProviderElement<CartStorage> $createElement($ProviderPointer pointer) =>
-      $ProviderElement(pointer);
-
-  @override
-  CartStorage create(Ref ref) {
-    return cartStorage(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(CartStorage value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<CartStorage>(value),
-    );
-  }
-}
-
-String _$cartStorageHash() => r'1310a6943404852d28042986a4af4ea80c42366a';
-
 /// 购物车状态 ≈ 你 iOS 里的 CartViewModel（单例、跨页共享）。
 ///
 /// 用 AsyncNotifier（而不是同步 Notifier）：初始值要从磁盘异步读取，
@@ -57,8 +15,8 @@ String _$cartStorageHash() => r'1310a6943404852d28042986a4af4ea80c42366a';
 ///
 /// 关键教训 1（真实踩过的坑）：如果初始读盘和"加购"各自独立地异步跑，
 /// 迟到的读盘结果可能用"读盘那一刻的旧数据"覆盖掉刚加购的新数据（竞态条件）。
-/// 解法：每次修改前用 `await future` 拿到"当前已确定的最新值"再改，
-/// future 会等待 build() 完成、且之后始终反映最新 state，不会用旧值覆盖新值。
+/// M7 维护演进：`await future` 等待初始化，串行队列才保证多个修改互斥。
+/// 保存成功后发布状态，调用方能可靠判断操作是否完成。
 ///
 /// 关键教训 2：代码生成的 provider 默认是 autoDispose——没人 watch 时会被回收。
 /// 购物车这种"全局唯一、该活满整个 App 生命周期"的状态不能靠"正好有人在 watch"这种偶然性
@@ -75,8 +33,8 @@ final cartProvider = CartProvider._();
 ///
 /// 关键教训 1（真实踩过的坑）：如果初始读盘和"加购"各自独立地异步跑，
 /// 迟到的读盘结果可能用"读盘那一刻的旧数据"覆盖掉刚加购的新数据（竞态条件）。
-/// 解法：每次修改前用 `await future` 拿到"当前已确定的最新值"再改，
-/// future 会等待 build() 完成、且之后始终反映最新 state，不会用旧值覆盖新值。
+/// M7 维护演进：`await future` 等待初始化，串行队列才保证多个修改互斥。
+/// 保存成功后发布状态，调用方能可靠判断操作是否完成。
 ///
 /// 关键教训 2：代码生成的 provider 默认是 autoDispose——没人 watch 时会被回收。
 /// 购物车这种"全局唯一、该活满整个 App 生命周期"的状态不能靠"正好有人在 watch"这种偶然性
@@ -90,8 +48,8 @@ final class CartProvider extends $AsyncNotifierProvider<Cart, List<CartItem>> {
   ///
   /// 关键教训 1（真实踩过的坑）：如果初始读盘和"加购"各自独立地异步跑，
   /// 迟到的读盘结果可能用"读盘那一刻的旧数据"覆盖掉刚加购的新数据（竞态条件）。
-  /// 解法：每次修改前用 `await future` 拿到"当前已确定的最新值"再改，
-  /// future 会等待 build() 完成、且之后始终反映最新 state，不会用旧值覆盖新值。
+  /// M7 维护演进：`await future` 等待初始化，串行队列才保证多个修改互斥。
+  /// 保存成功后发布状态，调用方能可靠判断操作是否完成。
   ///
   /// 关键教训 2：代码生成的 provider 默认是 autoDispose——没人 watch 时会被回收。
   /// 购物车这种"全局唯一、该活满整个 App 生命周期"的状态不能靠"正好有人在 watch"这种偶然性
@@ -116,7 +74,7 @@ final class CartProvider extends $AsyncNotifierProvider<Cart, List<CartItem>> {
   Cart create() => Cart();
 }
 
-String _$cartHash() => r'a6ea01bf7da64f42f1298cfed25b71e8df5ffa57';
+String _$cartHash() => r'2c4b40d0ba06d849af0e5d69fcb6b928cb155dbc';
 
 /// 购物车状态 ≈ 你 iOS 里的 CartViewModel（单例、跨页共享）。
 ///
@@ -125,8 +83,8 @@ String _$cartHash() => r'a6ea01bf7da64f42f1298cfed25b71e8df5ffa57';
 ///
 /// 关键教训 1（真实踩过的坑）：如果初始读盘和"加购"各自独立地异步跑，
 /// 迟到的读盘结果可能用"读盘那一刻的旧数据"覆盖掉刚加购的新数据（竞态条件）。
-/// 解法：每次修改前用 `await future` 拿到"当前已确定的最新值"再改，
-/// future 会等待 build() 完成、且之后始终反映最新 state，不会用旧值覆盖新值。
+/// M7 维护演进：`await future` 等待初始化，串行队列才保证多个修改互斥。
+/// 保存成功后发布状态，调用方能可靠判断操作是否完成。
 ///
 /// 关键教训 2：代码生成的 provider 默认是 autoDispose——没人 watch 时会被回收。
 /// 购物车这种"全局唯一、该活满整个 App 生命周期"的状态不能靠"正好有人在 watch"这种偶然性

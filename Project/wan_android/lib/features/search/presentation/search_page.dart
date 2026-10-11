@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../products/presentation/widgets/product_grid.dart';
+import '../../products/ui.dart';
 import 'providers/search_providers.dart';
 
 /// 搜索页：输入框 + 防抖 + 结果网格。

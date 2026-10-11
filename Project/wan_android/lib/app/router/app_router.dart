@@ -2,18 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/auth/presentation/login_page.dart';
-import '../../features/auth/presentation/providers/auth_providers.dart';
-import '../../features/cart/presentation/cart_page.dart';
-import '../../features/favorites/presentation/favorites_page.dart';
-import '../../features/orders/presentation/checkout_page.dart';
-import '../../features/orders/presentation/orders_page.dart';
-import '../../features/categories/presentation/categories_page.dart';
-import '../../features/categories/presentation/category_products_page.dart';
-import '../../features/products/presentation/home_page.dart';
-import '../../features/products/presentation/product_detail_page.dart';
-import '../../features/profile/presentation/profile_page.dart';
-import '../../features/search/presentation/search_page.dart';
+import '../../features/auth/api.dart';
+import '../../features/auth/ui.dart';
+import '../../features/cart/ui.dart';
+import '../../features/categories/ui.dart';
+import '../../features/favorites/ui.dart';
+import '../../features/orders/ui.dart';
+import '../../features/products/ui.dart';
+import '../../features/profile/ui.dart';
+import '../../features/search/ui.dart';
 import '../main_scaffold.dart';
 
 /// 需要登录才能访问的路径前缀。M8 先只挡"我的"；
@@ -40,7 +37,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final refreshListenable = _AuthRefreshListenable(ref);
   ref.onDispose(refreshListenable.dispose);
 
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/home',
     refreshListenable: refreshListenable,
     redirect: (context, state) {
@@ -66,7 +63,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           // 每个 branch = 一个 Tab 的导航栈。
           StatefulShellBranch(
             routes: [
-              GoRoute(path: '/home', builder: (context, state) => const HomePage()),
+              GoRoute(
+                path: '/home',
+                builder: (context, state) => const HomePage(),
+              ),
             ],
           ),
           StatefulShellBranch(
@@ -79,7 +79,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(path: '/cart', builder: (context, state) => const CartPage()),
+              GoRoute(
+                path: '/cart',
+                builder: (context, state) => const CartPage(),
+              ),
             ],
           ),
           StatefulShellBranch(
@@ -140,4 +143,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });

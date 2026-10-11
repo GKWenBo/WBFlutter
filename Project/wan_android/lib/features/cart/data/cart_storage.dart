@@ -1,7 +1,4 @@
-import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
-
+import '../../../core/storage/json_preferences_store.dart';
 import '../domain/cart_item.dart';
 
 /// 购物车的本地持久化 ≈ 你封装的 UserDefaults 读写器。
@@ -11,20 +8,19 @@ import '../domain/cart_item.dart';
 /// 这就是为什么 CartItem 也要有 @JsonSerializable()。
 class CartStorage {
   static const _key = 'cart_items';
+  final JsonPreferencesStore _store;
+  CartStorage({JsonPreferencesStore? store})
+    : _store = store ?? JsonPreferencesStore();
 
   Future<List<CartItem>> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw == null) return const [];
-    final list = jsonDecode(raw) as List<dynamic>;
-    return list
-        .map((e) => CartItem.fromJson(e as Map<String, dynamic>))
-        .toList();
+    final data = await _store.read(_key);
+    if (data == null) return const [];
+    return (data as List<dynamic>)
+        .map((item) => CartItem.fromJson(item as Map<String, dynamic>))
+        .toList(growable: false);
   }
 
   Future<void> save(List<CartItem> items) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = jsonEncode(items.map((e) => e.toJson()).toList());
-    await prefs.setString(_key, raw);
+    await _store.write(_key, items.map((item) => item.toJson()).toList());
   }
 }

@@ -1,44 +1,50 @@
-// 端到端一点的 widget 测试：真的"点一下"按钮，验证详情页 → 购物车这条链路真的通。
-// 比手动在模拟器里点更可靠、可重复运行、能进 CI。
-
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wan_android/features/categories/data/categories_dependencies.dart';
+import 'package:wan_android/features/categories/data/categories_repository.dart';
 import 'package:wan_android/features/categories/domain/category.dart';
 import 'package:wan_android/features/products/data/product_list_response.dart';
+import 'package:wan_android/features/products/data/products_dependencies.dart';
 import 'package:wan_android/features/products/data/products_repository.dart';
 import 'package:wan_android/features/products/domain/product.dart';
 import 'package:wan_android/features/products/presentation/product_detail_page.dart';
-import 'package:wan_android/features/products/presentation/providers/products_providers.dart';
+
+// 端到端一点的 widget 测试：真的"点一下"按钮，验证详情页 → 购物车这条链路真的通。
+// 比手动在模拟器里点更可靠、可重复运行、能进 CI。
 
 class _FakeProductsRepository extends ProductsRepository {
   final Product product;
-  _FakeProductsRepository(this.product);
+  _FakeProductsRepository(this.product) : super(dio: Dio());
 
   @override
   Future<Product> fetchProduct(int id) => Future.value(product);
 
   @override
   Future<ProductListResponse> fetchProducts({int limit = 20, int skip = 0}) =>
-      Future.value(const ProductListResponse(products: [], total: 0, skip: 0, limit: 20));
-
-  @override
-  Future<List<Category>> fetchCategories() => Future.value(const []);
+      Future.value(
+        const ProductListResponse(products: [], total: 0, skip: 0, limit: 20),
+      );
 
   @override
   Future<ProductListResponse> fetchByCategory(
     String slug, {
     int limit = 30,
     int skip = 0,
-  }) => Future.value(const ProductListResponse(products: [], total: 0, skip: 0, limit: 30));
+  }) => Future.value(
+    const ProductListResponse(products: [], total: 0, skip: 0, limit: 30),
+  );
 
   @override
   Future<ProductListResponse> searchProducts(
     String query, {
     int limit = 30,
     int skip = 0,
-  }) => Future.value(const ProductListResponse(products: [], total: 0, skip: 0, limit: 30));
+  }) => Future.value(
+    const ProductListResponse(products: [], total: 0, skip: 0, limit: 30),
+  );
 }
 
 void main() {
@@ -64,6 +70,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          categoriesRepositoryProvider.overrideWithValue(
+            _FakeCategoriesRepository(),
+          ),
           productsRepositoryProvider.overrideWithValue(
             _FakeProductsRepository(product),
           ),
@@ -85,4 +94,10 @@ void main() {
     expect(find.textContaining('已加入购物车'), findsOneWidget);
     expect(find.textContaining('测试商品'), findsWidgets);
   });
+}
+
+class _FakeCategoriesRepository extends CategoriesRepository {
+  _FakeCategoriesRepository() : super(dio: Dio());
+  @override
+  Future<List<Category>> fetchCategories() async => [];
 }

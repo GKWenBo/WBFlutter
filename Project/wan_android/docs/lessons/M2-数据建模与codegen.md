@@ -29,7 +29,7 @@ class Product {
 然后跑一次代码生成，`_$ProductFromJson`/`_$ProductToJson` 就有了：
 
 ```bash
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build
 # 边写边生成用 watch，改完存盘自动重跑：
 dart run build_runner watch  --delete-conflicting-outputs
 ```
@@ -95,7 +95,7 @@ class ServerException  extends AppException { final int? code; ... }
 | 概念/工具 | iOS 类比 | 怎么用 | 坑 |
 |---|---|---|---|
 | `@JsonSerializable()` | `Codable` | 打在 class 上 + 配 `fromJson`/`toJson` + `part '.g.dart'` | 三件套缺一不可；改完字段要重跑 build_runner，否则用的是旧生成代码 |
-| `build_runner` | 无（Codable 内建，Dart 要外挂生成） | `dart run build_runner build --delete-conflicting-outputs` | 冲突时加 `--delete-conflicting-outputs`；`.g.dart` 是产物，改它没用（下次生成会覆盖） |
+| `build_runner` | 无（Codable 内建，Dart 要外挂生成） | `dart run build_runner build` | 冲突时加 `--delete-conflicting-outputs`；`.g.dart` 是产物，改它没用（下次生成会覆盖） |
 | `part` / `part of` | 无直接对应 | 把生成文件拼进当前库文件 | 路径要和源文件同名（`product.dart`→`product.g.dart`）；写错名字生成不进来 |
 | `sealed class` | Swift enum with associated values | 定一组封闭子类，配穷尽 `switch` | 子类必须和父类同文件；非 sealed 的继承 switch 编译器不强制穷尽 |
 | `String?`（空安全） | `Optional`/`String?` | `?.`/`??`/`!` 三件套消空 | `!` 强解包空值即崩；JSON 里"可能缺的字段"一律声明可空 |
@@ -113,7 +113,7 @@ lib/features/products/
 lib/features/categories/domain/category.dart   Category
 lib/features/cart/domain/cart_item.dart        CartItem（快照 + copyWith，M7 用）
 生成产物（勿手改）：*.g.dart 由 build_runner 产出
-运行：dart run build_runner build --delete-conflicting-outputs
+运行：dart run build_runner build
 ```
 
 > 分层约定：**纯业务模型放 `domain/`**（Product/Category/CartItem），

@@ -56,7 +56,7 @@ final class CategoriesProvider
   }
 }
 
-String _$categoriesHash() => r'4c1f71dca0f5065ec5e0eab4680b3a7e69091b54';
+String _$categoriesHash() => r'd8e69b581ec08eadc23cc70b7cb156bab8d6045a';
 
 /// 某个分类下的商品（family：按 slug 各自缓存）。
 /// 默认 autoDispose：离开该分类页面后自动清理，避免缓存无限膨胀。

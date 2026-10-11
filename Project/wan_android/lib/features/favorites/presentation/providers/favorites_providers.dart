@@ -1,35 +1,36 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../products/domain/product.dart';
-import '../../data/favorites_storage.dart';
+import '../../../../core/async/serial_task_queue.dart';
+import '../../../products/models.dart';
+import '../../data/favorites_dependencies.dart';
 
 part 'favorites_providers.g.dart';
 
-@riverpod
-FavoritesStorage favoritesStorage(Ref ref) => FavoritesStorage();
-
 /// 收藏列表的全局状态，与 Cart 同一套模式：
 /// AsyncNotifier（初始值要异步读盘）+ keepAlive: true（跨页共享、活满 App 生命周期）。
-/// M7 的两个教训（竞态用 `await future` 防、autoDispose 用 keepAlive 防）在这里原样适用。
+/// M7 维护演进：等待初始化 + 串行修改 + 保存成功才发布状态；keepAlive 保证跨页存活。
 @Riverpod(keepAlive: true)
 class Favorites extends _$Favorites {
+  final _queue = SerialTaskQueue();
   @override
   Future<List<Product>> build() {
-    return ref.read(favoritesStorageProvider).load();
+    return ref
+        .read(favoritesStorageProvider)
+        .load()
+        .then(List<Product>.unmodifiable);
   }
 
   /// 收藏/取消收藏用同一个入口：已收藏就移除，没收藏就追加。
   /// UI 侧只需要一个♥按钮来回点，不用分两个方法（≈ 你 iOS 里的 toggleFavorite(_:)）。
-  Future<void> toggle(Product product) async {
+  Future<void> toggle(Product product) => _queue.run(() async {
     final current = await future; // 先拿当前最新值再改（M7 教训 1：防竞态覆盖）
     final exists = current.any((e) => e.id == product.id);
     final updated = exists
         ? current.where((e) => e.id != product.id).toList()
         : [...current, product];
-    state = AsyncData(updated);
-    // 落盘不 await：后台副作用，不阻塞 UI（与 Cart._persist 同理）。
-    ref.read(favoritesStorageProvider).save(updated);
-  }
+    await ref.read(favoritesStorageProvider).save(updated);
+    if (ref.mounted) state = AsyncData(List.unmodifiable(updated));
+  });
 }
 
 /// 派生 + family 的组合："某个商品是否已收藏"。

@@ -2,7 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/checkout/checkout_controller.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/run_ui_action.dart';
 import '../domain/order.dart';
 import 'providers/orders_providers.dart';
 
@@ -13,23 +15,48 @@ class OrdersPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersState = ref.watch(ordersProvider);
+    final checkout = ref.watch(checkoutControllerProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('我的订单')),
-      body: ordersState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErrorView(
-          message: '订单读取失败：$e',
-          onRetry: () => ref.invalidate(ordersProvider),
-        ),
-        data: (orders) => orders.isEmpty
-            ? const Center(child: Text('还没有订单，去下一单试试吧'))
-            : ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: orders.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (context, i) => _OrderCard(order: orders[i]),
+      body: Column(
+        children: [
+          if (checkout.needsRetry)
+            ListTile(
+              title: Text(
+                checkout.result!.needsCartRetry
+                    ? '订单已创建，购物车尚未同步'
+                    : '订单已创建，默认地址尚未保存',
               ),
+              trailing: TextButton(
+                onPressed: checkout.isSubmitting
+                    ? null
+                    : () => runUiAction(context, () async {
+                        await ref
+                            .read(checkoutControllerProvider.notifier)
+                            .retryPending();
+                      }),
+                child: const Text('重试'),
+              ),
+            ),
+          Expanded(
+            child: ordersState.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => ErrorView(
+                message: '订单读取失败：$e',
+                onRetry: () => ref.invalidate(ordersProvider),
+              ),
+              data: (orders) => orders.isEmpty
+                  ? const Center(child: Text('还没有订单，去下一单试试吧'))
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: orders.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, i) => _OrderCard(order: orders[i]),
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -136,8 +163,7 @@ class _OrderCard extends StatelessWidget {
   }
 
   /// 手搓的时间格式化（yyyy-MM-dd HH:mm）。
-  /// 正经做法是 intl 包的 DateFormat（顺带管多语言），M12 做 i18n 时一起引入，
-  /// 现在为一个格式化不值得加依赖。
+  /// 固定格式用于订单摘要；如需随语言变化，可使用已引入的 intl。
   String _formatTime(DateTime t) {
     String two(int n) => n.toString().padLeft(2, '0');
     return '${t.year}-${two(t.month)}-${two(t.day)} ${two(t.hour)}:${two(t.minute)}';

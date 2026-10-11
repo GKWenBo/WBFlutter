@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/run_ui_action.dart';
 import '../domain/cart_item.dart';
 import 'providers/cart_providers.dart';
 
@@ -26,7 +27,10 @@ class CartPage extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: '清空购物车',
-              onPressed: () => ref.read(cartProvider.notifier).clear(),
+              onPressed: () => runUiAction(
+                context,
+                () => ref.read(cartProvider.notifier).clear(),
+              ),
             ),
         ],
       ),
@@ -63,7 +67,7 @@ class CartPage extends ConsumerWidget {
                     ),
                     FilledButton(
                       // M10：push 到结算页。/checkout 在鉴权表里，
-                      // 未登录会被 redirect 拦去登录页，登录后再回来。
+                      // 未登录会被 redirect 拦去登录页，登录成功后可再进入结算页。
                       onPressed: () => context.push('/checkout'),
                       child: const Text('去结算'),
                     ),
@@ -76,19 +80,35 @@ class CartPage extends ConsumerWidget {
 }
 
 /// 购物车单行：图 + 标题/单价 + 数量步进器 + 滑动删除。
-class _CartRow extends ConsumerWidget {
+class _CartRow extends ConsumerStatefulWidget {
   final CartItem item;
   const _CartRow({required this.item});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CartRow> createState() => _CartRowState();
+}
+
+class _CartRowState extends ConsumerState<_CartRow> {
+  bool _busy = false;
+  Future<bool> _perform(Future<void> Function() action) async {
+    if (_busy) return false;
+    setState(() => _busy = true);
+    final success = await runUiAction(context, action);
+    if (mounted) setState(() => _busy = false);
+    return success;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
     // Dismissible：左右滑动删除一行 ≈ UITableView 的滑动删除手势。
     // key 必须唯一且稳定，否则滑动动画/状态会错位。
     return Dismissible(
       key: ValueKey(item.productId),
       direction: DismissDirection.endToStart,
-      onDismissed: (_) =>
-          ref.read(cartProvider.notifier).removeItem(item.productId),
+      confirmDismiss: (_) => _perform(
+        () => ref.read(cartProvider.notifier).removeItem(item.productId),
+      ),
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -148,16 +168,30 @@ class _CartRow extends ConsumerWidget {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.remove_circle_outline),
-                    onPressed: () => ref
-                        .read(cartProvider.notifier)
-                        .updateQuantity(item.productId, item.quantity - 1),
+                    onPressed: _busy
+                        ? null
+                        : () => _perform(
+                            () => ref
+                                .read(cartProvider.notifier)
+                                .updateQuantity(
+                                  item.productId,
+                                  item.quantity - 1,
+                                ),
+                          ),
                   ),
                   Text('${item.quantity}'),
                   IconButton(
                     icon: const Icon(Icons.add_circle_outline),
-                    onPressed: () => ref
-                        .read(cartProvider.notifier)
-                        .updateQuantity(item.productId, item.quantity + 1),
+                    onPressed: _busy
+                        ? null
+                        : () => _perform(
+                            () => ref
+                                .read(cartProvider.notifier)
+                                .updateQuantity(
+                                  item.productId,
+                                  item.quantity + 1,
+                                ),
+                          ),
                   ),
                 ],
               ),

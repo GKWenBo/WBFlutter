@@ -1,25 +1,15 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../../core/storage/auth_storage.dart';
-import '../../data/auth_repository.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../data/auth_dependencies.dart';
 import '../../domain/user.dart';
 
 part 'auth_providers.g.dart';
 
-@riverpod
-AuthStorage authStorage(Ref ref) => AuthStorage();
-
-@riverpod
-AuthRepository authRepository(Ref ref) => AuthRepository();
-
 /// 登录态 ≈ 你 iOS 里的 SessionManager/AuthViewModel（单例、跨页共享，App 生命周期内常驻）。
 ///
-/// 和 M7 的 Cart 是同一种"AsyncNotifier + keepAlive"模式，但这里有个很好的对比：
-/// Cart 的 mutation（加购/改数量）要在旧列表基础上"改一部分"，所以必须先 `await future`
-/// 拿到最新值才能改，否则会有竞态覆盖；
-/// 这里的 login()/logout() 是"整个替换掉旧状态"（不管旧值是什么，登录成功后就是新用户，
-/// 登出后就是 null），不依赖旧状态，所以不需要 `await future` 这一步——
-/// 是否要"先读旧值"取决于新状态是否依赖旧状态，而不是无脑套模板。
+/// M8 登录/登出是整替换，不需要计算旧列表；这不等于所有异步操作天然无竞态。
+/// M7 维护演进将购物车/收藏/订单的初始化等待和修改互斥分开处理。
 @Riverpod(keepAlive: true)
 class Auth extends _$Auth {
   @override
@@ -46,10 +36,9 @@ class Auth extends _$Auth {
   Future<void> login(String username, String password) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final result = await ref.read(authRepositoryProvider).login(
-        username,
-        password,
-      );
+      final result = await ref
+          .read(authRepositoryProvider)
+          .login(username, password);
       await ref
           .read(authStorageProvider)
           .saveTokens(

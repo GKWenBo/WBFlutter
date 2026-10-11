@@ -1,3 +1,19 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wan_android/app/app.dart';
+import 'package:wan_android/core/network/dio_client.dart';
+import 'package:wan_android/core/storage/auth_storage.dart';
+import 'package:wan_android/features/categories/data/categories_dependencies.dart';
+import 'package:wan_android/features/categories/data/categories_repository.dart';
+import 'package:wan_android/features/products/data/product_list_response.dart';
+import 'package:wan_android/features/products/data/products_dependencies.dart';
+import 'package:wan_android/features/products/data/products_repository.dart';
+import 'package:wan_android/features/products/domain/product.dart';
+
 // M11 教学重点：integration_test = Flutter 版端到端测试。
 //
 // iOS 对照：≈ XCUITest——启动"整个 App"，真实走导航、点真实控件、验证跨页面的结果。
@@ -14,19 +30,7 @@
 //   验证"一条核心用户旅程真的能走通"，比如下单主流程、登录主流程。
 //   单个页面/单个函数的细节留给下层的 widget/unit 测试（多而快）。
 
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wan_android/app/app.dart';
-import 'package:wan_android/core/storage/auth_storage.dart';
-import 'package:wan_android/features/auth/presentation/providers/auth_providers.dart';
-import 'package:wan_android/features/products/data/product_list_response.dart';
-import 'package:wan_android/features/products/data/products_repository.dart';
-import 'package:wan_android/features/products/domain/product.dart';
-import 'package:wan_android/features/products/presentation/providers/products_providers.dart';
+class MockCategoriesRepository extends Mock implements CategoriesRepository {}
 
 class MockProductsRepository extends Mock implements ProductsRepository {}
 
@@ -60,9 +64,14 @@ void main() {
 
   testWidgets('主流程：首页看到商品 → 点进详情 → 加入购物车成功', (tester) async {
     final repo = MockProductsRepository();
+    final categories = MockCategoriesRepository();
+    when(() => categories.fetchCategories()).thenAnswer((_) async => []);
     // 首页列表、详情、分类三处数据来源都打桩（分类 Tab 会被 shell 一起构建）。
     when(
-      () => repo.fetchProducts(limit: any(named: 'limit'), skip: any(named: 'skip')),
+      () => repo.fetchProducts(
+        limit: any(named: 'limit'),
+        skip: any(named: 'skip'),
+      ),
     ).thenAnswer(
       (_) async => const ProductListResponse(
         products: [_product],
@@ -72,12 +81,12 @@ void main() {
       ),
     );
     when(() => repo.fetchProduct(any())).thenAnswer((_) async => _product);
-    when(() => repo.fetchCategories()).thenAnswer((_) async => []);
 
     // 网络图片在测试里拉不到真实字节，禁用缓存管理器的重试噪音（渲染占位即可，不影响断言）。
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          categoriesRepositoryProvider.overrideWithValue(categories),
           productsRepositoryProvider.overrideWithValue(repo),
           authStorageProvider.overrideWithValue(_FakeAuthStorage()),
         ],

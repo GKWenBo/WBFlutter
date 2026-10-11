@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../features/cart/presentation/providers/cart_providers.dart';
+import '../features/cart/api.dart';
 import '../l10n/app_localizations.dart';
 
 /// App 主框架：底部 4 个 Tab（首页/分类/购物车/我的）。≈ UITabBarController。

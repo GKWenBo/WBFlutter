@@ -4,11 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_env.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/run_ui_action.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../auth/presentation/providers/auth_providers.dart';
-import '../../cart/presentation/providers/cart_providers.dart';
-import '../../favorites/presentation/providers/favorites_providers.dart';
-import '../../orders/presentation/providers/orders_providers.dart';
+import '../../auth/api.dart';
+import '../../cart/api.dart';
+import '../../favorites/api.dart';
+import '../../orders/api.dart';
 
 /// 我的页。M8 起接入登录鉴权：go_router 的 redirect 已经保证"未登录进不了这一页"
 /// （见 app/router/app_router.dart），所以这里只管展示已登录用户的信息 + 登出入口。
@@ -27,7 +28,10 @@ class ProfilePage extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: '退出登录',
-            onPressed: () => ref.read(authProvider.notifier).logout(),
+            onPressed: () => runUiAction(
+              context,
+              () => ref.read(authProvider.notifier).logout(),
+            ),
           ),
         ],
       ),

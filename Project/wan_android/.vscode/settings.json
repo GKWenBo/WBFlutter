@@ -8,5 +8,6 @@
   "[dart]": {
     "editor.formatOnSave": true,
     "editor.rulers": [80]
-  }
+  },
+  "java.compile.nullAnalysis.mode": "automatic"
 }

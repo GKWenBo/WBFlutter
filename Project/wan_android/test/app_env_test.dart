@@ -1,9 +1,9 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:wan_android/core/config/app_env.dart';
+
 // 测多环境配置：解析函数的容错 + 每套 Flavor 的关键开关。
 // 注意 AppEnv.current 依赖编译期常量 --dart-define，测试里改不了；
 // 所以我们把逻辑抽成了纯函数 parseFlavor / flavorConfigFor，直接测它们（这也是当初抽纯函数的原因）。
-
-import 'package:flutter_test/flutter_test.dart';
-import 'package:wan_android/core/config/app_env.dart';
 
 void main() {
   group('parseFlavor 容错', () {

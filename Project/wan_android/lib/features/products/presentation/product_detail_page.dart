@@ -2,8 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../cart/presentation/providers/cart_providers.dart';
-import '../../favorites/presentation/providers/favorites_providers.dart';
+import '../../../core/widgets/run_ui_action.dart';
+import '../../cart/api.dart';
+import '../../favorites/api.dart';
 import '../domain/product.dart';
 import 'providers/products_providers.dart';
 
@@ -235,15 +236,32 @@ class _DetailGalleryState extends State<_DetailGallery> {
 
 /// 底部"加入购物车"栏。M7 起真正写入全局 Cart provider；M9 加收藏♥按钮。
 /// 改成 ConsumerWidget 是因为要 ref.read(cartProvider.notifier) 触发写操作。
-class _AddToCartBar extends ConsumerWidget {
+class _AddToCartBar extends ConsumerStatefulWidget {
   final Product product;
   const _AddToCartBar({required this.product});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AddToCartBar> createState() => _AddToCartBarState();
+}
+
+class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
+  bool _busy = false;
+
+  Future<void> _perform(
+    Future<void> Function() action, {
+    String? message,
+  }) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    await runUiAction(context, action, successMessage: message);
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // watch 派生的 isFavoriteProvider(id)（family + 派生的组合）：
     // 收藏列表变化时，只有"这个商品"的收藏态变了才会触发这里重建。
-    final isFav = ref.watch(isFavoriteProvider(product.id));
+    final isFav = ref.watch(isFavoriteProvider(widget.product.id));
 
     return SafeArea(
       child: Padding(
@@ -258,12 +276,17 @@ class _AddToCartBar extends ConsumerWidget {
               icon: const Icon(Icons.favorite_border),
               selectedIcon: const Icon(Icons.favorite, color: Colors.redAccent),
               tooltip: isFav ? '取消收藏' : '收藏',
-              onPressed: () =>
-                  ref.read(favoritesProvider.notifier).toggle(product),
+              onPressed: _busy
+                  ? null
+                  : () => _perform(
+                      () => ref
+                          .read(favoritesProvider.notifier)
+                          .toggle(widget.product),
+                    ),
             ),
             Expanded(
               child: Text(
-                '\$${product.discountedPrice.toStringAsFixed(2)}',
+                '\$${widget.product.discountedPrice.toStringAsFixed(2)}',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
@@ -271,16 +294,14 @@ class _AddToCartBar extends ConsumerWidget {
               ),
             ),
             FilledButton.icon(
-              onPressed: () {
-                // ref.read(...).notifier：在事件回调里取一次 notifier 调用方法（写操作用 read，不用 watch）。
-                ref.read(cartProvider.notifier).addProduct(product);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('已加入购物车：${product.title}'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              },
+              onPressed: _busy
+                  ? null
+                  : () => _perform(
+                      () => ref
+                          .read(cartProvider.notifier)
+                          .addProduct(widget.product),
+                      message: '已加入购物车：${widget.product.title}',
+                    ),
               icon: const Icon(Icons.add_shopping_cart),
               label: const Text('加入购物车'),
             ),

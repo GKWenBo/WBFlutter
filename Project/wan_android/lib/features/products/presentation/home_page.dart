@@ -71,7 +71,14 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: SafeArea(
         child: RefreshIndicator(
           // 下拉刷新：ref.refresh 重建 provider→重新取第一页；返回的 Future 让转圈持续到加载完成。
-          onRefresh: () => ref.refresh(productListProvider.future),
+          onRefresh: () async {
+            try {
+              final refreshed = ref.refresh(productListProvider.future);
+              await refreshed;
+            } catch (_) {
+              // Provider 已保留错误态，由页面展示；刷新动画仍应正常结束。
+            }
+          },
           child: CustomScrollView(
             controller: _scrollController,
             // 让内容很少时也能下拉（否则 RefreshIndicator 触发不了）。
@@ -90,14 +97,21 @@ class _HomePageState extends ConsumerState<HomePage> {
               ...asyncProducts.when(
                 loading: () => [_loadingSliver()],
                 error: (e, _) => [_errorSliver('$e')],
-                data: (products) => [
+                data: (feed) => [
                   // M9：这批数据是离线缓存兜底来的，就在网格上方亮一条横幅提示。
-                  if (ref.read(productListProvider.notifier).isFromCache)
+                  if (feed.isFromCache)
                     SliverToBoxAdapter(child: _offlineBanner()),
-                  _productGrid(products),
+                  _productGrid(feed.products),
                   // 还有下一页就显示底部"加载更多"转圈。
-                  if (ref.read(productListProvider.notifier).hasMore)
-                    _footerLoadingSliver(),
+                  if (feed.isLoadingMore) _footerLoadingSliver(),
+                  if (feed.appendError != null)
+                    SliverToBoxAdapter(
+                      child: TextButton(
+                        onPressed: () =>
+                            ref.read(productListProvider.notifier).loadMore(),
+                        child: const Text('加载更多失败，点击重试'),
+                      ),
+                    ),
                 ],
               ),
             ],

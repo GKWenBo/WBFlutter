@@ -15,7 +15,7 @@
 
 ```bash
 flutter pub get                                        # 拉依赖
-dart run build_runner build --delete-conflicting-outputs   # 代码生成（模型/Riverpod）
+dart run build_runner build   # 代码生成（模型/Riverpod）
 flutter run                                            # 跑到模拟器/真机（热重载默认开）
 
 flutter analyze                                        # 静态检查（提交前必跑）
@@ -24,7 +24,7 @@ flutter test integration_test/                         # 端到端测试（≈ X
 ```
 
 > 改了带 `@JsonSerializable` / `@riverpod` 注解的代码后要重新生成：
-> `dart run build_runner build --delete-conflicting-outputs`（或 `watch` 常驻自动生成）。
+> `dart run build_runner build`（或 `watch` 常驻自动生成）。
 
 多环境（Flavor，M12）：
 
@@ -67,9 +67,9 @@ lib/
     app.dart                    WanShopApp：MaterialApp.router + 主题 + 环境水印
     main_scaffold.dart          底部 4-Tab（≈ UITabBarController），画购物车角标
     router/app_router.dart      go_router 路由表 + redirect 鉴权 + refreshListenable
-  core/                         跨 feature 通用代码（feature 之间互不 import，共享下沉到这里）
+  core/                         跨 feature 通用代码（仅放网络、存储、错误和通用组件等基础设施）
     config/app_env.dart         Flavor/环境配置（baseUrl、日志开关、水印）
-    network/                    dio 单例 + LoggingInterceptor + AuthInterceptor
+    network/                    dioProvider 装配 + LoggingInterceptor + AuthInterceptor
     storage/auth_storage.dart   Keychain 封装（被拦截器 + auth feature 共用，故放 core）
     error/failure.dart          sealed AppException（统一错误模型）
     widgets/                    通用组件（错误态等）
@@ -86,7 +86,7 @@ lib/
 ### 关键约定
 
 - **`main.dart` 保持极薄**：只负责启动，主题/路由/首页装配全在 `app/`——接 Riverpod、go_router 时改动点集中。
-- **每个 Tab 页面来自各自 feature，彼此不 import**；`MainScaffold` 用 `IndexedStack` 让 4 页常驻、保留各自滚动位置。
+- **每个 Tab 页面来自各自 feature，跨模块通过限定导出的 models.dart / api.dart / ui.dart 访问**；`StatefulShellRoute.indexedStack` 管理独立导航栈，`MainScaffold` 负责外壳和角标。
 - **页面优先 `StatelessWidget`**，把可变状态下沉封装到最小需要它的子 Widget（Banner 页码封在 `HomeBanner`、轮播状态封在 `_DetailGallery`）。
 - 列表/网格用 `CustomScrollView` + Sliver，整页单一滚动容器；长列表一律 `.builder`。
 
@@ -100,18 +100,30 @@ DummyJSON ──dio──▶ Repository ──▶ Riverpod Notifier(AsyncValue: 
                         shared_preferences / secure storage（本地持久化 + 离线兜底）
 ```
 
+### 模块入口与结算协调
+
+业务模型留在所属模块；跨模块引用 `models.dart`（类型）、`api.dart`（业务能力）或
+`ui.dart`（页面/可复用组件），禁止直接引用其他模块内部文件。Repository/Storage 的
+装配位于 `data/*_dependencies.dart`，测试可直接覆盖这些依赖。
+
+`app/checkout/CheckoutController` 保存当前会话的结算检查点：订单保存成功后，
+只重试尚未完成的购物车扣量和默认地址保存。提交期间新增商品及增加的数量会保留；
+默认地址失败不将已创建订单标记为下单失败。进程重启恢复与跨存储事务不在本项目实现范围。
+
+详见 **[架构维护说明](docs/ARCHITECTURE.md)** 与 **[验证记录](docs/VALIDATION.md)**。
+
 ### 状态管理约定（Riverpod）
 
-- **三态渲染**：Notifier `build()` 返回 `Future`，自动包成 `AsyncValue`，页面 `.when(loading/error/data)`，不手写 `isLoading`。
+- **三态渲染**：Notifier `build()` 返回 `Future`，自动包成 `AsyncValue`；首页使用 `ProductFeedState` 同时发布商品与分页元信息，页面 `.when(loading/error/data)`，不手写 `isLoading`。
 - **DI**：Repository/Storage 都做成 provider，测试用 `overrideWith` 换 mock。
 - **生命周期**：全局唯一、活满 App 的状态（购物车/收藏/登录态）用 `@Riverpod(keepAlive: true)`；临时/大参数空间（分类商品、搜索结果）用默认 `autoDispose` + `family`。
-- **异步竞态**：依赖旧状态的 mutation（加购/改量/收藏）先 `await future` 再改，防迟到结果覆盖新值；整替换（登录/登出）不需要。
+- **异步修改**：`await future` 等待初始化，串行队列保证购物车/收藏/订单的读改存互斥，保存成功后发布状态。等待初始化本身不提供互斥。
 - **收窄重建**：总件数/总价等做成**派生 provider**，只在派生值 `==` 真变时通知（Tab 角标不被无关改动惊动）。详见 [M13](docs/lessons/M13-性能与收尾.md)。
 
 ### 网络与错误
 
-- `core/network/dio_client.dart` 单例，挂 `AuthInterceptor`（`onRequest` 异步读 Keychain 自动拼 `Bearer`）+ `LoggingInterceptor`（按 Flavor 开关）。
-- Repository 在边界把 `DioException` 翻译成 `sealed` 的 `AppException`（Network/Server/Parse/Unknown）——UI 层永远不 catch dio。
+- `core/network/dio_client.dart` 的 `dioProvider` 随 ProviderScope 复用与释放，挂 `AuthInterceptor`（`onRequest` 异步读 Keychain 自动拼 `Bearer`）+ `LoggingInterceptor`（按 Flavor 开关）。
+- Repository 使用 `requestJson` 在网络边界翻译 `DioException`，在解码边界翻译格式/类型错误为 `ParseException`；`sealed AppException` 不依赖 Dio（Network/Server/Parse/Unknown）——UI 层永远不 catch dio。
 
 ### 路由与鉴权
 

@@ -1,46 +1,23 @@
 import 'package:dio/dio.dart';
 
-import '../../../core/error/failure.dart';
-import '../../../core/network/dio_client.dart';
+import '../../../core/network/request_json.dart';
 import '../domain/user.dart';
 import 'login_response.dart';
 
-/// 鉴权数据仓库，和 M3 的 ProductsRepository 是同一种写法：
-/// UI/Provider 只调这里的方法，不直接碰 dio。
+/// M8 鉴权仓库，传输与解析在各自边界处理，≈ iOS SessionService。
 class AuthRepository {
   final Dio _dio;
-
-  AuthRepository({Dio? dio}) : _dio = dio ?? DioClient.instance.dio;
-
-  /// 用账号密码换 token。DummyJSON 的 `/auth/login` 不需要提前带 token（未登录状态发起）。
-  Future<LoginResponse> login(String username, String password) async {
-    try {
-      final res = await _dio.post(
-        '/auth/login',
-        data: {
-          'username': username,
-          'password': password,
-          'expiresInMins': 30,
-        },
-      );
-      return LoginResponse.fromJson(res.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw AppException.fromDio(e);
-    } catch (e) {
-      throw ParseException('登录响应解析失败：$e');
-    }
-  }
-
-  /// 用当前 token 换用户信息。这次请求依赖 [AuthInterceptor] 自动加的 Authorization 头，
-  /// 调用方不用自己拼 token——这正是拦截器统一处理横切关注点的意义。
-  Future<User> fetchCurrentUser() async {
-    try {
-      final res = await _dio.get('/auth/me');
-      return User.fromJson(res.data as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw AppException.fromDio(e);
-    } catch (e) {
-      throw ParseException('用户信息解析失败：$e');
-    }
-  }
+  // Dart 3.12 私有字段命名初始化参数，对外仍通过 dio: 注入。
+  AuthRepository({required this._dio});
+  Future<LoginResponse> login(String username, String password) => requestJson(
+    () => _dio.post(
+      '/auth/login',
+      data: {'username': username, 'password': password, 'expiresInMins': 30},
+    ),
+    (data) => LoginResponse.fromJson(data as Map<String, dynamic>),
+  );
+  Future<User> fetchCurrentUser() => requestJson(
+    () => _dio.get('/auth/me'),
+    (data) => User.fromJson(data as Map<String, dynamic>),
+  );
 }

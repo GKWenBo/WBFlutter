@@ -1,13 +1,16 @@
-// 测试 AuthNotifier ≈ 给你的 SessionManager/AuthViewModel 写 XCTest。
-// 用 ProviderContainer 直接测业务逻辑，用假 Repository/Storage 隔离真实网络与 Keychain。
-
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wan_android/core/network/dio_client.dart';
 import 'package:wan_android/core/storage/auth_storage.dart';
+import 'package:wan_android/features/auth/data/auth_dependencies.dart';
 import 'package:wan_android/features/auth/data/auth_repository.dart';
 import 'package:wan_android/features/auth/data/login_response.dart';
 import 'package:wan_android/features/auth/domain/user.dart';
 import 'package:wan_android/features/auth/presentation/providers/auth_providers.dart';
+
+// 测试 AuthNotifier ≈ 给你的 SessionManager/AuthViewModel 写 XCTest。
+// 用 ProviderContainer 直接测业务逻辑，用假 Repository/Storage 隔离真实网络与 Keychain。
 
 /// 假存储：内存 Map 代替 flutter_secure_storage，测试环境没有真实 Keychain/系统凭据库。
 class _FakeAuthStorage extends AuthStorage {
@@ -30,6 +33,7 @@ class _FakeAuthStorage extends AuthStorage {
 
 /// 假 Repository：不打真实网络，按用户名/密码返回固定结果。
 class _FakeAuthRepository extends AuthRepository {
+  _FakeAuthRepository() : super(dio: Dio());
   @override
   Future<LoginResponse> login(String username, String password) async {
     if (username == 'emilys' && password == 'emilyspass') {

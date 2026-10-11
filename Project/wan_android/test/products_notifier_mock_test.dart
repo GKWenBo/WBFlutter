@@ -1,3 +1,14 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wan_android/core/error/failure.dart';
+import 'package:wan_android/features/products/data/product_list_response.dart';
+import 'package:wan_android/features/products/data/products_dependencies.dart';
+import 'package:wan_android/features/products/data/products_repository.dart';
+import 'package:wan_android/features/products/domain/product.dart';
+import 'package:wan_android/features/products/presentation/providers/products_providers.dart';
+
 // M11 教学重点：用 mocktail 取代"手写 fake 类"。
 //
 // 对照 test/home_cache_test.dart（手写 _OkRepository/_OfflineRepository）：
@@ -7,16 +18,6 @@
 //
 // iOS 对照：≈ 你手写 mock 对象或用 OCMock/Cuckoo——
 //   `when` ≈ stub 返回值，`verify` ≈ `OCMVerify` / XCTest 里数调用次数。
-
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wan_android/core/error/failure.dart';
-import 'package:wan_android/features/products/data/product_list_response.dart';
-import 'package:wan_android/features/products/data/products_repository.dart';
-import 'package:wan_android/features/products/domain/product.dart';
-import 'package:wan_android/features/products/presentation/providers/products_providers.dart';
 
 // 关键区别：mock 用 `implements` 而不是 `extends`。
 // 它**不继承任何真实实现**——所有方法默认返回一个"哨兵值"，必须靠 when() 显式打桩，
@@ -73,7 +74,8 @@ void main() {
     final container = _containerWith(repo);
     addTearDown(container.dispose);
 
-    final products = await container.read(productListProvider.future);
+    final feed = await container.read(productListProvider.future);
+    final products = feed.products;
     expect(products, hasLength(20));
 
     // verify：手写 fake 做不到的能力——断言"这个方法被以 skip:0 恰好调用了一次"。
@@ -90,7 +92,9 @@ void main() {
     ).thenAnswer((_) async => _page(startId: 1, count: 20, skip: 0, total: 40));
     when(
       () => repo.fetchProducts(limit: any(named: 'limit'), skip: 20),
-    ).thenAnswer((_) async => _page(startId: 21, count: 20, skip: 20, total: 40));
+    ).thenAnswer(
+      (_) async => _page(startId: 21, count: 20, skip: 20, total: 40),
+    );
 
     final container = _containerWith(repo);
     addTearDown(container.dispose);
@@ -99,7 +103,7 @@ void main() {
     await container.read(productListProvider.future);
     await container.read(productListProvider.notifier).loadMore();
 
-    final all = container.read(productListProvider).value;
+    final all = container.read(productListProvider).value?.products;
     expect(all, hasLength(40)); // 两页拼起来
     expect(all!.last.id, 40);
 
@@ -119,7 +123,7 @@ void main() {
     addTearDown(container.dispose);
 
     await container.read(productListProvider.future);
-    expect(container.read(productListProvider.notifier).hasMore, isFalse);
+    expect(container.read(productListProvider).requireValue.hasMore, isFalse);
 
     // 已经没有更多，loadMore 应该被 `!_hasMore` 短路，绝不发第二次请求。
     await container.read(productListProvider.notifier).loadMore();
@@ -130,7 +134,10 @@ void main() {
     final repo = MockProductsRepository();
     // thenThrow：给这次调用打桩成"抛异常"，模拟断网。
     when(
-      () => repo.fetchProducts(limit: any(named: 'limit'), skip: any(named: 'skip')),
+      () => repo.fetchProducts(
+        limit: any(named: 'limit'),
+        skip: any(named: 'skip'),
+      ),
     ).thenThrow(const NetworkException('无法连接服务器'));
 
     final container = _containerWith(repo);

@@ -1,3 +1,7 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:wan_android/features/products/presentation/widgets/section_header.dart';
+
 // M11 教学重点：golden 测试 = Flutter 版"快照测试"。
 //
 // iOS 对照：≈ FBSnapshotTestCase / swift-snapshot-testing——
@@ -12,10 +16,6 @@
 //     这是刻意的：避免不同机器字体差异导致 golden 到处失败。要看真字体得额外加载字体，一般不必。
 //   - 基准图**必须提交进 git**，否则别人跑测试没有比对基准。
 //   - 跨平台像素可能有细微差异；团队通常固定在 CI 的同一套环境生成 golden。
-
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:wan_android/features/products/presentation/widgets/section_header.dart';
 
 void main() {
   // 固定一个手机宽度的画布，让每次渲染尺寸一致（golden 对尺寸敏感）。

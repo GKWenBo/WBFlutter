@@ -1,11 +1,11 @@
-// 测试 Favorites notifier + 两个派生 provider，套路完全照搬 cart_test.dart：
-// ProviderContainer 直接测业务逻辑，不渲染 Widget。
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wan_android/features/favorites/presentation/providers/favorites_providers.dart';
 import 'package:wan_android/features/products/domain/product.dart';
+
+// 测试 Favorites notifier + 两个派生 provider，套路完全照搬 cart_test.dart：
+// ProviderContainer 直接测业务逻辑，不渲染 Widget。
 
 Product _makeProduct(int id) => Product(
   id: id,

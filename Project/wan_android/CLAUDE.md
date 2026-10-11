@@ -25,7 +25,7 @@ flutter test test/cart_test.dart              # 跑单个测试文件
 flutter test --name '关键字'                   # 按测试名筛选
 flutter test --update-goldens                 # 更新 golden 基准图
 flutter test integration_test/                # 跑端到端测试（需模拟器/真机）
-dart run build_runner build --delete-conflicting-outputs   # 重跑代码生成
+dart run build_runner build   # 重跑代码生成
 flutter gen-l10n                # 重新生成国际化代码（改 .arb 后）
 ```
 
@@ -53,7 +53,7 @@ lib/
   core/                # 跨 feature 通用代码
     config/            #   AppEnv：--dart-define 多环境配置
     error/             #   AppException：sealed class 异常层级
-    network/           #   DioClient + AuthInterceptor + LoggingInterceptor
+    network/           #   dioProvider + AuthInterceptor + LoggingInterceptor
     storage/           #   AuthStorage：token（flutter_secure_storage）
     widgets/           #   ErrorView 等共享组件
   features/<name>/     # 8 个业务模块：auth cart categories favorites orders products profile search
@@ -65,7 +65,7 @@ lib/
 关键约定：
 
 - **`main.dart` 保持极薄**——只 `runApp`。装配全在 `app/app.dart`。
-- **feature 之间不互相 import**。跨模块共享的东西上提到 `core/`。
+- **跨 feature 使用限定导出的 `models.dart` / `api.dart` / `ui.dart`**，不引用其他模块的内部文件。业务类型保留所属模块；`core/` 只放通用基础设施。
 - **导航状态归 go_router 管**：`MainScaffold` 不持有 `_currentIndex`，由 `StatefulShellRoute.indexedStack` 提供 `navigationShell`（4 个 Tab 各自保留导航栈与滚动位置）。
 - **页面优先 `StatelessWidget` / `ConsumerWidget`**，把可变状态下沉到子 Widget 或 provider。
 - 列表/网格用 `CustomScrollView` + Sliver 组合，整页单一滚动容器。
@@ -85,6 +85,16 @@ lib/
 | 测试 | **mocktail** + `ProviderContainer` 直测 provider + `matchesGoldenFile` + `integration_test` |
 
 **明确没有用**：freezed、drift/sqflite、bloc、get_it、alchemist。不要引入这些库"改进"现有代码。
+
+### 维护阶段的可靠性规则
+
+- Repository 要求显式注入 Dio；`dioProvider` 和鉴权共用同一个 `authStorageProvider`。
+- 装配 provider 放在 `data/*_dependencies.dart`，状态 provider 留在 presentation。
+- 首页 `AsyncValue<ProductFeedState>` 包含分页元信息；刷新代次隔离旧请求，销毁后不发布状态。
+- 本地主数据的修改必须串行处理，等待保存成功才发布状态；失败保留原值并反馈页面。
+- `await future` 只解决初始化等待，不替代互斥队列。缓存副本可以降级，但后台错误必须处理。
+- 结算由 `app/checkout/checkout_controller.dart` 协调，订单成功后的重试不得重新创建订单。
+- 架构维护说明见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，验证记录见 [docs/VALIDATION.md](docs/VALIDATION.md)。
 
 ### 代码生成
 
@@ -114,12 +124,12 @@ lib/
 
 ## 相关文档
 
-- **原理深挖**（面试向）：仓库根 `doc/` —— [Riverpod 实现原理](../doc/Riverpod实现原理.md)、[Flutter 测试体系](../doc/Flutter测试体系.md)、[Mocktail 使用指南](../doc/Mocktail使用指南.md)、[多环境打包](../doc/Flutter多环境打包配置.md)、[国际化](../doc/Flutter国际化.md)
+- **原理深挖**（面试向）：仓库根 `doc/` —— [Riverpod 实现原理](../../doc/Riverpod实现原理.md)、[Flutter 测试体系](../../doc/Flutter测试体系.md)、[Mocktail 使用指南](../../doc/Mocktail使用指南.md)、[多环境打包](../../doc/Flutter多环境打包配置.md)、[国际化](../../doc/Flutter国际化.md)
 - **状态管理专题**：`../state_lab/`（五版 MiniShop 横向对比）
 - **原生交互专题**：`../native_lab/`（L0–L9，MethodChannel / Pigeon / PlatformView / add-to-app）
 
 ## Git 约定（重要）
 
-- 仓库根是 `/Users/wenbo/Desktop/WBFlutter`（**不是** `wan_android/`）。提交时**只 `git add wan_android/`**，避免把其他子工程的改动一起带进来。
+- 仓库根是 `/Users/wenbo/Desktop/WBFlutter`（**不是** `wan_android/`）。提交时**只按实际改动选择 `git add Project/wan_android/` 下的文件**，避免把其他子工程的改动一起带进来。
 - 直接提交到 `main`（线性学习日志风格）。提交信息用**中文、按模块**组织（如 `M13 性能与收尾：…`）。
 - 提交信息不带 AI 署名/Co-Authored-By。

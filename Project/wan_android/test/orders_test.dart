@@ -1,6 +1,3 @@
-// 测试 Orders notifier + 持久化：重点验证"冻结"语义（快照映射、金额计算）
-// 和嵌套对象/枚举/DateTime 的序列化往返（explicitToJson 是否真的生效）。
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,6 +5,9 @@ import 'package:wan_android/features/cart/domain/cart_item.dart';
 import 'package:wan_android/features/orders/data/orders_storage.dart';
 import 'package:wan_android/features/orders/domain/order.dart';
 import 'package:wan_android/features/orders/presentation/providers/orders_providers.dart';
+
+// 测试 Orders notifier + 持久化：重点验证"冻结"语义（快照映射、金额计算）
+// 和嵌套对象/枚举/DateTime 的序列化往返（explicitToJson 是否真的生效）。
 
 CartItem _makeCartItem(int id, {double price = 100, int quantity = 1}) =>
     CartItem(
@@ -60,10 +60,12 @@ void main() {
 
   test('持久化往返：嵌套对象/枚举/DateTime 都能序列化回来（explicitToJson 生效）', () async {
     final container1 = ProviderContainer();
-    await container1.read(ordersProvider.notifier).placeOrder(
-      cartItems: [_makeCartItem(7, price: 33.5, quantity: 2)],
-      address: _address,
-    );
+    await container1
+        .read(ordersProvider.notifier)
+        .placeOrder(
+          cartItems: [_makeCartItem(7, price: 33.5, quantity: 2)],
+          address: _address,
+        );
     container1.dispose();
 
     // 新 container 重新从磁盘读，等于"杀掉 App 再打开"。

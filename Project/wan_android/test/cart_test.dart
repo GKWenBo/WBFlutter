@@ -1,11 +1,11 @@
-// 测试 CartNotifier ≈ 给你的 CartViewModel 写 XCTest。
-// 用 ProviderContainer 而不是渲染 Widget——直接测业务逻辑，跑得快、不依赖 UI。
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wan_android/features/cart/presentation/providers/cart_providers.dart';
 import 'package:wan_android/features/products/domain/product.dart';
+
+// 测试 CartNotifier ≈ 给你的 CartViewModel 写 XCTest。
+// 用 ProviderContainer 而不是渲染 Widget——直接测业务逻辑，跑得快、不依赖 UI。
 
 Product _makeProduct(int id, {double price = 100, double discount = 0}) =>
     Product(
@@ -34,7 +34,11 @@ void main() {
     addTearDown(container.dispose);
 
     final notifier = container.read(cartProvider.notifier);
-    final p1 = _makeProduct(1, price: 100, discount: 10); // discountedPrice = 90
+    final p1 = _makeProduct(
+      1,
+      price: 100,
+      discount: 10,
+    ); // discountedPrice = 90
     await notifier.addProduct(p1);
     await notifier.addProduct(p1); // 再加一次同款 → 数量叠加，不是新增一行
 

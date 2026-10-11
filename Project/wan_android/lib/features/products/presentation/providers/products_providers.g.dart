@@ -8,110 +8,6 @@ part of 'products_providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// 提供 ProductsRepository（依赖注入）。
-/// 任何地方 `ref.watch(productsRepositoryProvider)` 都能拿到同一个；
-/// 测试时可以 `overrideWith` 换成 mock（这就是 Riverpod 自带的 DI 能力）。
-
-@ProviderFor(productsRepository)
-final productsRepositoryProvider = ProductsRepositoryProvider._();
-
-/// 提供 ProductsRepository（依赖注入）。
-/// 任何地方 `ref.watch(productsRepositoryProvider)` 都能拿到同一个；
-/// 测试时可以 `overrideWith` 换成 mock（这就是 Riverpod 自带的 DI 能力）。
-
-final class ProductsRepositoryProvider
-    extends
-        $FunctionalProvider<
-          ProductsRepository,
-          ProductsRepository,
-          ProductsRepository
-        >
-    with $Provider<ProductsRepository> {
-  /// 提供 ProductsRepository（依赖注入）。
-  /// 任何地方 `ref.watch(productsRepositoryProvider)` 都能拿到同一个；
-  /// 测试时可以 `overrideWith` 换成 mock（这就是 Riverpod 自带的 DI 能力）。
-  ProductsRepositoryProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'productsRepositoryProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$productsRepositoryHash();
-
-  @$internal
-  @override
-  $ProviderElement<ProductsRepository> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  ProductsRepository create(Ref ref) {
-    return productsRepository(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(ProductsRepository value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<ProductsRepository>(value),
-    );
-  }
-}
-
-String _$productsRepositoryHash() =>
-    r'834631e4e78a070de6c6ebc1f3c7ca848a85a01b';
-
-/// 首页缓存的 DI provider（测试时同样可 override）。
-
-@ProviderFor(productsCache)
-final productsCacheProvider = ProductsCacheProvider._();
-
-/// 首页缓存的 DI provider（测试时同样可 override）。
-
-final class ProductsCacheProvider
-    extends $FunctionalProvider<ProductsCache, ProductsCache, ProductsCache>
-    with $Provider<ProductsCache> {
-  /// 首页缓存的 DI provider（测试时同样可 override）。
-  ProductsCacheProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'productsCacheProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$productsCacheHash();
-
-  @$internal
-  @override
-  $ProviderElement<ProductsCache> $createElement($ProviderPointer pointer) =>
-      $ProviderElement(pointer);
-
-  @override
-  ProductsCache create(Ref ref) {
-    return productsCache(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(ProductsCache value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<ProductsCache>(value),
-    );
-  }
-}
-
-String _$productsCacheHash() => r'5a9838d59584971c58554bd3f812b86d1d7a370f';
 
 @ProviderFor(product)
 final productProvider = ProductFamily._();
@@ -162,7 +58,7 @@ final class ProductProvider
   }
 }
 
-String _$productHash() => r'679b81b4327bac40c01f8adcba602711a92a2921';
+String _$productHash() => r'264fe914da3def72b1b73a6d83c8040cc6d54ea6';
 
 final class ProductFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<Product>, int> {
@@ -181,24 +77,15 @@ final class ProductFamily extends $Family
   String toString() => r'productProvider';
 }
 
-/// 商品列表的状态管理 ≈ 你 iOS 的 ViewModel（MVVM）。
-///
-/// build() 返回一个 Future，Riverpod 会自动把它包成 AsyncValue：
-/// 请求中 → loading，成功 → data，抛错 → error。页面只管 .when 渲染，不用自己记 loading 标志。
+/// M4 三态 + M9 离线兜底；维护演进：元信息进入状态，并隔离刷新代次。
 
 @ProviderFor(ProductList)
 final productListProvider = ProductListProvider._();
 
-/// 商品列表的状态管理 ≈ 你 iOS 的 ViewModel（MVVM）。
-///
-/// build() 返回一个 Future，Riverpod 会自动把它包成 AsyncValue：
-/// 请求中 → loading，成功 → data，抛错 → error。页面只管 .when 渲染，不用自己记 loading 标志。
+/// M4 三态 + M9 离线兜底；维护演进：元信息进入状态，并隔离刷新代次。
 final class ProductListProvider
-    extends $AsyncNotifierProvider<ProductList, List<Product>> {
-  /// 商品列表的状态管理 ≈ 你 iOS 的 ViewModel（MVVM）。
-  ///
-  /// build() 返回一个 Future，Riverpod 会自动把它包成 AsyncValue：
-  /// 请求中 → loading，成功 → data，抛错 → error。页面只管 .when 渲染，不用自己记 loading 标志。
+    extends $AsyncNotifierProvider<ProductList, ProductFeedState> {
+  /// M4 三态 + M9 离线兜底；维护演进：元信息进入状态，并隔离刷新代次。
   ProductListProvider._()
     : super(
         from: null,
@@ -218,24 +105,22 @@ final class ProductListProvider
   ProductList create() => ProductList();
 }
 
-String _$productListHash() => r'c53f86cc02e9c0a81adc9af57d52bb0361222817';
+String _$productListHash() => r'183b89b773c811f6be3ecd17564e44699bc170c7';
 
-/// 商品列表的状态管理 ≈ 你 iOS 的 ViewModel（MVVM）。
-///
-/// build() 返回一个 Future，Riverpod 会自动把它包成 AsyncValue：
-/// 请求中 → loading，成功 → data，抛错 → error。页面只管 .when 渲染，不用自己记 loading 标志。
+/// M4 三态 + M9 离线兜底；维护演进：元信息进入状态，并隔离刷新代次。
 
-abstract class _$ProductList extends $AsyncNotifier<List<Product>> {
-  FutureOr<List<Product>> build();
+abstract class _$ProductList extends $AsyncNotifier<ProductFeedState> {
+  FutureOr<ProductFeedState> build();
   @$mustCallSuper
   @override
   WhenComplete runBuild() {
-    final ref = this.ref as $Ref<AsyncValue<List<Product>>, List<Product>>;
+    final ref =
+        this.ref as $Ref<AsyncValue<ProductFeedState>, ProductFeedState>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<AsyncValue<List<Product>>, List<Product>>,
-              AsyncValue<List<Product>>,
+              AnyNotifier<AsyncValue<ProductFeedState>, ProductFeedState>,
+              AsyncValue<ProductFeedState>,
               Object?,
               Object?
             >;

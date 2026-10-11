@@ -1,23 +1,28 @@
-// 端到端一点的 widget 测试：真的"点一下"底部"我的" Tab、填表单、点登录、点登出，
-// 验证 go_router 的 redirect + refreshListenable 真的接对了。
-
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wan_android/app/app.dart';
+import 'package:wan_android/core/network/dio_client.dart';
 import 'package:wan_android/core/storage/auth_storage.dart';
+import 'package:wan_android/features/auth/data/auth_dependencies.dart';
 import 'package:wan_android/features/auth/data/auth_repository.dart';
 import 'package:wan_android/features/auth/data/login_response.dart';
 import 'package:wan_android/features/auth/domain/user.dart';
-import 'package:wan_android/features/auth/presentation/providers/auth_providers.dart';
+import 'package:wan_android/features/categories/data/categories_dependencies.dart';
+import 'package:wan_android/features/categories/data/categories_repository.dart';
 import 'package:wan_android/features/categories/domain/category.dart';
 import 'package:wan_android/features/products/data/product_list_response.dart';
+import 'package:wan_android/features/products/data/products_dependencies.dart';
 import 'package:wan_android/features/products/data/products_repository.dart';
 import 'package:wan_android/features/products/domain/product.dart';
-import 'package:wan_android/features/products/presentation/providers/products_providers.dart';
+
+// 端到端一点的 widget 测试：真的"点一下"底部"我的" Tab、填表单、点登录、点登出，
+// 验证 go_router 的 redirect + refreshListenable 真的接对了。
 
 class _FakeProductsRepository extends ProductsRepository {
+  _FakeProductsRepository() : super(dio: Dio());
   @override
   Future<ProductListResponse> fetchProducts({int limit = 20, int skip = 0}) =>
       Future.value(
@@ -26,9 +31,6 @@ class _FakeProductsRepository extends ProductsRepository {
 
   @override
   Future<Product> fetchProduct(int id) => throw UnimplementedError();
-
-  @override
-  Future<List<Category>> fetchCategories() => Future.value(const []);
 
   @override
   Future<ProductListResponse> fetchByCategory(
@@ -68,6 +70,7 @@ class _FakeAuthStorage extends AuthStorage {
 }
 
 class _FakeAuthRepository extends AuthRepository {
+  _FakeAuthRepository() : super(dio: Dio());
   @override
   Future<LoginResponse> login(String username, String password) async {
     if (username == 'emilys' && password == 'emilyspass') {
@@ -101,9 +104,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('未登录点"我的"被拦到登录页；登录成功看到用户信息；登出后再次被拦截', (
-    tester,
-  ) async {
+  testWidgets('未登录点"我的"被拦到登录页；登录成功看到用户信息；登出后再次被拦截', (tester) async {
     // M12：底部 Tab 标签已国际化，测试默认 en 会渲染成英文。
     // 强制中文，让下面按"我的"文案定位 Tab 仍成立。
     tester.platformDispatcher.localesTestValue = const [Locale('zh')];
@@ -112,6 +113,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          categoriesRepositoryProvider.overrideWithValue(
+            _FakeCategoriesRepository(),
+          ),
           productsRepositoryProvider.overrideWithValue(
             _FakeProductsRepository(),
           ),
@@ -144,4 +148,10 @@ void main() {
 
     expect(find.widgetWithText(AppBar, '登录'), findsOneWidget);
   });
+}
+
+class _FakeCategoriesRepository extends CategoriesRepository {
+  _FakeCategoriesRepository() : super(dio: Dio());
+  @override
+  Future<List<Category>> fetchCategories() async => [];
 }

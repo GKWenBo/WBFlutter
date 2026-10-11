@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/error_view.dart';
-import '../../products/presentation/widgets/product_grid.dart';
+import '../../products/ui.dart';
 import 'providers/favorites_providers.dart';
 
 /// 收藏页。从"我的"页菜单进入（/favorites）。
@@ -25,10 +25,8 @@ class FavoritesPage extends ConsumerWidget {
           message: '收藏读取失败：$e',
           onRetry: () => ref.invalidate(favoritesProvider),
         ),
-        data: (products) => ProductGrid(
-          products: products,
-          emptyHint: '还没有收藏的商品，去详情页点 ♥ 收藏吧',
-        ),
+        data: (products) =>
+            ProductGrid(products: products, emptyHint: '还没有收藏的商品，去详情页点 ♥ 收藏吧'),
       ),
     );
   }

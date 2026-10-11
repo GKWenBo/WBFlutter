@@ -8,68 +8,21 @@ part of 'favorites_providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-
-@ProviderFor(favoritesStorage)
-final favoritesStorageProvider = FavoritesStorageProvider._();
-
-final class FavoritesStorageProvider
-    extends
-        $FunctionalProvider<
-          FavoritesStorage,
-          FavoritesStorage,
-          FavoritesStorage
-        >
-    with $Provider<FavoritesStorage> {
-  FavoritesStorageProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'favoritesStorageProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$favoritesStorageHash();
-
-  @$internal
-  @override
-  $ProviderElement<FavoritesStorage> $createElement($ProviderPointer pointer) =>
-      $ProviderElement(pointer);
-
-  @override
-  FavoritesStorage create(Ref ref) {
-    return favoritesStorage(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(FavoritesStorage value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<FavoritesStorage>(value),
-    );
-  }
-}
-
-String _$favoritesStorageHash() => r'6b5e3e4104dfd08ee5171269c033f0f4dee42f50';
-
 /// 收藏列表的全局状态，与 Cart 同一套模式：
 /// AsyncNotifier（初始值要异步读盘）+ keepAlive: true（跨页共享、活满 App 生命周期）。
-/// M7 的两个教训（竞态用 `await future` 防、autoDispose 用 keepAlive 防）在这里原样适用。
+/// M7 维护演进：等待初始化 + 串行修改 + 保存成功才发布状态；keepAlive 保证跨页存活。
 
 @ProviderFor(Favorites)
 final favoritesProvider = FavoritesProvider._();
 
 /// 收藏列表的全局状态，与 Cart 同一套模式：
 /// AsyncNotifier（初始值要异步读盘）+ keepAlive: true（跨页共享、活满 App 生命周期）。
-/// M7 的两个教训（竞态用 `await future` 防、autoDispose 用 keepAlive 防）在这里原样适用。
+/// M7 维护演进：等待初始化 + 串行修改 + 保存成功才发布状态；keepAlive 保证跨页存活。
 final class FavoritesProvider
     extends $AsyncNotifierProvider<Favorites, List<Product>> {
   /// 收藏列表的全局状态，与 Cart 同一套模式：
   /// AsyncNotifier（初始值要异步读盘）+ keepAlive: true（跨页共享、活满 App 生命周期）。
-  /// M7 的两个教训（竞态用 `await future` 防、autoDispose 用 keepAlive 防）在这里原样适用。
+  /// M7 维护演进：等待初始化 + 串行修改 + 保存成功才发布状态；keepAlive 保证跨页存活。
   FavoritesProvider._()
     : super(
         from: null,
@@ -89,11 +42,11 @@ final class FavoritesProvider
   Favorites create() => Favorites();
 }
 
-String _$favoritesHash() => r'f66813714f3de1a69441ad98b95c9a274c227bf0';
+String _$favoritesHash() => r'fb37983d8418e842717a9758fac7a3b2b62d3381';
 
 /// 收藏列表的全局状态，与 Cart 同一套模式：
 /// AsyncNotifier（初始值要异步读盘）+ keepAlive: true（跨页共享、活满 App 生命周期）。
-/// M7 的两个教训（竞态用 `await future` 防、autoDispose 用 keepAlive 防）在这里原样适用。
+/// M7 维护演进：等待初始化 + 串行修改 + 保存成功才发布状态；keepAlive 保证跨页存活。
 
 abstract class _$Favorites extends $AsyncNotifier<List<Product>> {
   FutureOr<List<Product>> build();

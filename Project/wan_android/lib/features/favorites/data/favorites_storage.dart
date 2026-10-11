@@ -1,8 +1,5 @@
-import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../products/domain/product.dart';
+import '../../../core/storage/json_preferences_store.dart';
+import '../../products/models.dart';
 
 /// 收藏的本地持久化，写法与 CartStorage 完全同构（≈ 又一个 UserDefaults 读写器）。
 ///
@@ -14,20 +11,19 @@ import '../../products/domain/product.dart';
 /// 不必再造一个裁剪过的 FavoriteItem。
 class FavoritesStorage {
   static const _key = 'favorite_products';
+  final JsonPreferencesStore _store;
+  FavoritesStorage({JsonPreferencesStore? store})
+    : _store = store ?? JsonPreferencesStore();
 
   Future<List<Product>> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw == null) return const [];
-    final list = jsonDecode(raw) as List<dynamic>;
-    return list
-        .map((e) => Product.fromJson(e as Map<String, dynamic>))
-        .toList();
+    final data = await _store.read(_key);
+    if (data == null) return const [];
+    return (data as List<dynamic>)
+        .map((item) => Product.fromJson(item as Map<String, dynamic>))
+        .toList(growable: false);
   }
 
-  Future<void> save(List<Product> products) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = jsonEncode(products.map((e) => e.toJson()).toList());
-    await prefs.setString(_key, raw);
+  Future<void> save(List<Product> items) async {
+    await _store.write(_key, items.map((item) => item.toJson()).toList());
   }
 }

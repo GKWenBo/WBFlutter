@@ -1,9 +1,9 @@
-// 测国际化：直接 load 出某语言的 AppLocalizations 实例，验证翻译 + ICU 复数/占位符。
-// 用 delegate.load(Locale) 拿实例，不用 pump 整个 App，测起来干净直接。
-
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wan_android/l10n/app_localizations.dart';
+
+// 测国际化：直接 load 出某语言的 AppLocalizations 实例，验证翻译 + ICU 复数/占位符。
+// 用 delegate.load(Locale) 拿实例，不用 pump 整个 App，测起来干净直接。
 
 void main() {
   test('支持 en 和 zh 两种语言', () {

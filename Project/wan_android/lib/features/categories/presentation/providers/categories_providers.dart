@@ -1,7 +1,8 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../products/domain/product.dart';
-import '../../../products/presentation/providers/products_providers.dart';
+import '../../../products/api.dart';
+import '../../../products/models.dart';
+import '../../data/categories_dependencies.dart';
 import '../../domain/category.dart';
 
 part 'categories_providers.g.dart';
@@ -11,13 +12,15 @@ part 'categories_providers.g.dart';
 /// （对比：不加 keepAlive 的代码生成 provider 默认是 autoDispose，没人看就清掉。）
 @Riverpod(keepAlive: true)
 Future<List<Category>> categories(Ref ref) {
-  return ref.watch(productsRepositoryProvider).fetchCategories();
+  return ref.watch(categoriesRepositoryProvider).fetchCategories();
 }
 
 /// 某个分类下的商品（family：按 slug 各自缓存）。
 /// 默认 autoDispose：离开该分类页面后自动清理，避免缓存无限膨胀。
 @riverpod
 Future<List<Product>> categoryProducts(Ref ref, String slug) async {
-  final page = await ref.watch(productsRepositoryProvider).fetchByCategory(slug);
+  final page = await ref
+      .watch(productsRepositoryProvider)
+      .fetchByCategory(slug);
   return page.products;
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/error_view.dart';
-import '../../products/presentation/widgets/product_grid.dart';
+import '../../products/ui.dart';
 import 'providers/categories_providers.dart';
 
 /// 某分类下的商品页。slug 决定请求哪个分类，title 只用于导航栏展示。
