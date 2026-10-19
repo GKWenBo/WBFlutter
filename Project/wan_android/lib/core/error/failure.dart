@@ -35,6 +35,15 @@ class ServerException extends AppException {
   const ServerException(super.message, {this.code});
 }
 
+/// 登录凭证被服务端拒绝（用户名或密码错误）。
+///
+/// 只由**登录**路径产生（AuthRepository.login 把 400/401 翻译成它）：同样是 401，
+/// 带着过期 token 请求 /auth/me 并不是"密码错了"，所以不能在拦截器里全局映射。
+/// 有了它，登录失败不再显示成"服务器开小差了（400）"，用户不会误以为是服务器挂了。
+class InvalidCredentialsException extends AppException {
+  const InvalidCredentialsException(super.message);
+}
+
 /// 解析/数据格式错误。
 class ParseException extends AppException {
   const ParseException(super.message);

@@ -162,9 +162,16 @@ void main() {
       expect(ar, contains('‏'));
     });
 
-    test('百分比：de 在 % 前加空格', () async {
-      expect((await load('en')).discountBadge(0.085), '-9%');
-      expect((await load('de')).discountBadge(0.085), '-9$nbsp%');
+    test('折扣：负号也交给 locale（de 在 % 前加不换行空格）', () async {
+      expect((await load('en')).discountBadge(-0.085), '-9%');
+      expect((await load('de')).discountBadge(-0.085), '-9$nbsp%');
+    });
+
+    test('阿语折扣：负号前有 LRM，RTL 下不会跑到数字右边变成 "9%-"', () async {
+      // 早期写法是 ARB 里 "-{percent}" + 传正数：裸连字符在 RTL 段首被判成从右往左。
+      // intl 格式化负数会在负号前插 U+200E（LRM）把它钉在数字左边。
+      final ar = (await load('ar')).discountBadge(-0.085);
+      expect(ar, startsWith('\u200E-'));
     });
 
     test('一位小数评分：de 用逗号', () async {

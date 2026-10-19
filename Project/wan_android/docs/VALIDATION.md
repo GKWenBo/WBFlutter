@@ -80,16 +80,16 @@ git diff --check
 |---|---|
 | `dart run build_runner build` | 0 项输出变化，`.g.dart` 与源码一致 |
 | `flutter gen-l10n` | 重新生成后与入库生成物逐字节一致；未翻译报告为 `{}` |
-| `dart format --output=none --set-exit-if-changed lib test integration_test` | 138 个文件，0 项待格式化 |
+| `dart format --output=none --set-exit-if-changed lib test integration_test` | 139 个文件，0 项待格式化 |
 | `flutter analyze --no-pub` | No issues found |
-| `flutter test --no-pub` | 132 项全部通过（原 87 项 + 新增 45 项） |
+| `flutter test --no-pub` | 142 项全部通过（原 87 项 + 新增 55 项，含代码审查后的 10 项回归测试） |
 | Golden | 原两张 `section_header` 基准图未更新且通过；新增 `section_header_with_more_rtl.png` |
 | 本地文档链接 | 62 项，0 项失效 |
 | `git diff --check` | 通过 |
 
 ## 已验证的行为
 
-- ARB：四种语言各 91 个 key，key 集合与占位符与模板一致；`supportedLocales.first == en`。
+- ARB：四种语言各 93 个 key，key 集合与占位符与模板一致；`supportedLocales.first == en`。
 - 复数：阿语 0/1/2/3/10/11/99/100/103 分别落入 zero/one/two/few/few/many/many/other/few。
 - 格式：en/zh/de/ar 的金额、百分比、一位小数、日期输出；德语分隔为 U+00A0。
 - 错误：异常按类型翻译，内部错误不泄露中文诊断信息（含页面级断言）。
@@ -98,6 +98,22 @@ git diff --check
 - 窄屏（320pt）：zh/de/ar × App 外壳/登录/购物车/结算无溢出；阿语手机号输入框为 LTR。
 - 窄屏测试曾抓到两处真实溢出（`SectionHeader` 标题、结算底栏按钮），已修复并由该测试守护。
 - 阿语数字归一化：`١٣٨…` / `۱۳۸` 可通过手机号校验并以 ASCII 存储。
+
+## 代码审查后的修复（7 条意见，6 条成立）
+
+| 意见 | 结论 | 回归测试 |
+|---|---|---|
+| 语言弹层保存中连点会 pop 掉下层页面 | 修复（保存中禁用，只 pop 一次） | `i18n_app_test` 连点用例 |
+| 结算"购物车为空"等原因被兜成通用文案 | 修复（`CheckoutException` + `LocalizedException`） | `checkout_reliability_test`、`i18n_support_test` |
+| 阿语折扣负号显示到数字右侧 | 修复（传负数，ARB 不写 `-`） | `l10n_test` 断言负号前有 U+200E |
+| 冷启动首帧先按系统语言渲染 | 修复（`deferFirstFrame`） | `i18n_app_test` 断言读盘前 `sendFramesToEngine == false` |
+| 分类标题以翻译快照经 `extra` 传递 | 修复（按 slug 在 build 时翻译） | `i18n_app_test` 分类标题用例 |
+| 手机号框 LTR 会把标签/图标翻到左侧 | **误报**：`textDirection` 只传给 EditableText，实测三个图标 x 相同 | 测量写入 `i18n_app_test` |
+| 登录密码错误显示为服务器错误（400） | 修复（登录路径 400/401 → `InvalidCredentialsException`） | `i18n_support_test`（含 `/auth/me` 401 不误判） |
+
+- 变异检查：分别删除防连点、`deferFirstFrame`、按 slug 翻译三处修复，对应用例均变红；还原后全部通过。
+- 新增测试另抓到一处：语言弹层在 800×600 画布溢出 23px，已改为可滚动。
+- 自查：`describeError` 原注释声称 sealed 可保证编译期穷尽，但被 `_` 分支架空；已拆为无默认分支的内层 switch。
 
 ## iOS 模拟器观察（非完整验收）
 

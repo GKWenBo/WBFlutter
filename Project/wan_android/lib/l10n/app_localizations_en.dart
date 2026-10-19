@@ -60,6 +60,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorParse => 'We couldn\'t read the data we received.';
 
   @override
+  String get errorInvalidCredentials => 'Incorrect username or password.';
+
+  @override
   String get errorUnknown => 'Something went wrong. Please try again.';
 
   @override
@@ -140,7 +143,7 @@ class AppLocalizationsEn extends AppLocalizations {
         intl.NumberFormat.percentPattern(localeName);
     final String percentString = percentNumberFormat.format(percent);
 
-    return '-$percentString';
+    return '$percentString';
   }
 
   @override
@@ -309,6 +312,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get submitOrder => 'Place order';
+
+  @override
+  String get checkoutNothingToRetry =>
+      'There\'s no unfinished order to resume.';
 
   @override
   String get retryCheckout => 'Retry checkout';

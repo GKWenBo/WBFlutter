@@ -60,6 +60,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Die empfangenen Daten konnten nicht gelesen werden.';
 
   @override
+  String get errorInvalidCredentials =>
+      'Benutzername oder Passwort ist falsch.';
+
+  @override
   String get errorUnknown =>
       'Etwas ist schiefgelaufen. Bitte versuche es erneut.';
 
@@ -142,7 +146,7 @@ class AppLocalizationsDe extends AppLocalizations {
         intl.NumberFormat.percentPattern(localeName);
     final String percentString = percentNumberFormat.format(percent);
 
-    return '-$percentString';
+    return '$percentString';
   }
 
   @override
@@ -312,6 +316,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get submitOrder => 'Zahlungspflichtig bestellen';
+
+  @override
+  String get checkoutNothingToRetry =>
+      'Es gibt keine offene Bestellung, die fortgesetzt werden kann.';
 
   @override
   String get retryCheckout => 'Kauf erneut abschließen';

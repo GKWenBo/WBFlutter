@@ -4,7 +4,7 @@
 > 4 个 Tab 和"我的"页两行——系统切到英文，App 里 90% 的字还是中文。
 >
 > 本篇产出：
-> - **全量抽取**：约 80 处硬编码中文 → ARB（每种语言 91 个 key），错误、订单状态、金额、日期全部本地化；
+> - **全量抽取**：约 80 处硬编码中文 → ARB（每种语言 93 个 key），错误、订单状态、金额、日期全部本地化；
 > - **四种语言**：中 / 英 / **德** / **阿**——德语练"长文本 + 格式差异"，阿语练"RTL 镜像 + 六种复数 + 数字体系"；
 > - **App 内切换语言**（跟随系统 / 手选，持久化），iOS / Android 平台声明补齐；
 > - **测试**：ARB 一致性、阿语复数、格式化、RTL golden、窄屏溢出冒烟（新增 45 个用例）。
@@ -28,21 +28,39 @@
 | 常量里存文案 | `static const _categories = [(label: '手机', …)]` | `const` 里不可能有 context；全局缓存的翻译切语言不会变 | 常量只留 icon + slug，build 时按 slug 翻译 |
 | 默认参数是文案 | `ProductGrid({this.emptyHint = '没有找到商品'})` | 默认参数必须是编译期常量 | 改成可空，`build` 里 `emptyHint ?? l10n.productsEmpty` |
 
-`describeError` 是整个错误体系的唯一翻译点：
+`describeError` 是整个错误体系的统一翻译入口：
 
 ```dart
 // core/error/error_messages.dart
 extension AppErrorMessages on AppLocalizations {
   String describeError(Object error) => switch (error) {
+    LocalizedException() => error.localizedMessage(this), // 应用层业务异常自带文案（扩展点）
+    AppException() => _describeAppException(error),       // 数据层异常：按类型翻译
+    _ => errorUnknown, // StateError 等内部错误：message 是给开发者的中文，不能甩给德语用户
+  };
+
+  // 单独一个 switch、不写 `_`：AppException 是 sealed，新增子类时这里编译报错，逼你补文案。
+  String _describeAppException(AppException error) => switch (error) {
     NetworkException(issue: NetworkIssue.timeout) => errorNetworkTimeout,
     NetworkException(issue: NetworkIssue.unreachable) => errorNoConnection,
     ServerException(:final code) => errorServer(code?.toString() ?? '?'),
+    InvalidCredentialsException() => errorInvalidCredentials,
     ParseException() => errorParse,
     UnknownException() => errorUnknown,
-    _ => errorUnknown,   // StateError 等内部错误：它们的 message 是给开发者的中文，不能甩给德语用户
   };
 }
 ```
+
+- **⚠️ 穷尽检查只在没有兜底分支时才起作用**。第一版把这些分支和 `_ => errorUnknown` 写在同一个 switch 里，
+  注释还写着"sealed 保证新增子类会编译报错"——其实不会：新子类会被 `_` 悄悄吞成通用文案。
+  拆成"外层分流 + 内层无默认分支的 sealed switch"，注释才名副其实。
+- **两种业务异常的落点**：
+  - 数据层能判断的（登录接口 400/401 = 密码错）→ 在 Repository 边界翻成**类型**
+    `InvalidCredentialsException`，由这里翻译。同样是 401，`/auth/me` 的是 token 失效，所以只在登录路径细化。
+  - 应用层流程里的（结算时购物车为空、没有可恢复的订单）→ `CheckoutException implements LocalizedException`，
+    自带当前语言文案。**数据/领域层的异常不要实现这个接口**——它们不该依赖 AppLocalizations。
+  - 反例：第一版直接 `throw StateError('购物车为空')`，被 `_` 兜成"出了点问题，请稍后重试"，
+    用户不知道原因、重试也永远失败——"不泄露开发者文案"不等于"把有用的原因也丢掉"。
 
 - iOS 对照：≈ `Error` 只带 code/domain，`LocalizedError.errorDescription` 在展示层取本地化串。
 - `AppException.message` 降级为**开发者诊断信息**（日志、断点里看），不再上屏。测试里专门断言了
@@ -73,7 +91,7 @@ extension AppErrorMessages on AppLocalizations {
 | 占位符格式 | 用在 | 同一个值的不同输出 |
 |---|---|---|
 | `simpleCurrency` + `name: USD` | 所有金额 | en/zh `$1,234.50` · de `1.234,50 $` |
-| `percentPattern`（传小数 0.085） | 折扣角标 | en `-9%` · de `-9 %` |
+| `percentPattern`（传**负**小数 -0.085） | 折扣角标 | en `-9%` · de `-9 %` · ar 负号前带 LRM |
 | `decimalPatternDigits` + `decimalDigits: 1` | 评分 | en `4.5` · de `4,5` |
 | `DateTime` + `yMd+Hm` | 订单时间 | zh `2026/3/7 09:05` · de `7.3.2026 09:05` |
 
@@ -137,8 +155,16 @@ ICU/CLDR 复数类别有 6 个：`zero / one / two / few / many / other`。**每
 ≈ `UIImage.imageFlippedForRightToLeftLayoutDirection()`。不是所有图标都该翻：时钟、播放键、对勾就不该。
 
 **强制 LTR 的内容**：手机号、邮箱、验证码、URL "天生从左往右读"。结算页手机号输入框设了
-`textDirection: TextDirection.ltr`，否则阿语下光标和对齐跑到右边。（测试断言了：三个输入框里
-只有手机号是 LTR，其余跟随界面。）
+`textDirection: TextDirection.ltr`，否则阿语下光标和对齐跑到右边。
+`TextField.textDirection` **只传给内部的 EditableText**（输入文字本身），标签和图标的排布由
+`InputDecorator` 按 `Directionality.of(context)` 决定——所以手机号框的标签/图标仍和其它框一样在右侧。
+（测试断言了：三个输入框里只有手机号的 EditableText 是 LTR；三个前缀图标的 x 坐标相同。）
+
+**符号也有方向——别在译文里手写负号**：折扣角标第一版写成 ARB `"-{percent}"` 再传正数。
+阿语界面下这个裸的 ASCII 连字符位于 RTL 段首，Unicode 双向算法把它判成从右往左，
+显示出来是 **`9%-`**。改成 ARB 只写 `"{percent}"`、传 **`-0.085`**：intl 输出
+`U+200E - 9 U+200E % U+200E`，负号前那个 LRM 把它钉在数字左边。
+推论：**正负号、百分号、货币符号都属于数字格式，交给 locale，不要拼进译文**。
 
 ### 5. 阿语的数字：显示不用管，**输入必须归一化** ⭐⭐⭐
 
@@ -201,6 +227,14 @@ MaterialApp.router(locale: ref.watch(appLocaleProvider).asData?.value, …)
 - **语言名用"自称"**（endonym）：`简体中文 / English / Deutsch / العربية`，**不翻译**。
   手滑切到看不懂的阿语后，列表里得还写着"简体中文"才找得回来。
 - **入口放两处**：我的页（菜单行）+ 登录页 AppBar——未登录的人进不了"我的"。
+- **弹层防连点**：保存要等写盘，期间用户可能连点两个语言。第一版每次点击都各自 `select` + `pop`，
+  第二次 `pop` 时弹层正在退场，pop 掉的是**弹层下面的登录页**。现在弹层是 StatefulWidget，
+  保存中禁用所有选项，整个弹层只 pop 一次。
+- **弹层可滚动**：底部弹层最多占屏高 9/16，横屏、大字号或语言变多时固定 Column 会溢出
+  （测试在 800×600 画布上抓到溢出 23px），内容外面套 `SingleChildScrollView`。
+- **翻译后的字符串不要当快照传**：首页点分类原来通过路由 `extra` 把**翻译好的**分类名传给分类页。
+  进了分类页再去切语言，StatefulShellRoute 保留着这页，标题还是旧语言。改成只传 slug，
+  分类页 build 时 `localizedCategoryName(l10n, slug)` 按当前语言翻译（服务端分类名本来就没有翻译，仍用 extra）。
 
 **兜底语言的坑（⚠️ 本篇最隐蔽的一个）**：
 
@@ -215,10 +249,23 @@ preferred-supported-locales: [en]   # 显式钉住兜底语言
 
 （`l10n_test.dart` 有一条用例专门断言 `supportedLocales.first == en`。）
 
-**冷启动的一帧**：偏好要异步读盘，读完之前 `locale` 是 null，第一帧按系统语言画，然后再切过去。
-读 shared_preferences 只要几毫秒，通常看不出来；但窄屏测试就是在这一帧里抓到英文标题溢出的——
-**这一帧也是会被布局、会出错的**。要彻底消除，可以在 `main()` 里先 await 读出偏好再 override 进 ProviderScope
-（本项目为保持 main.dart 极薄没这么做）。
+**冷启动的一帧**：偏好要异步读盘，读完之前 `locale` 是 null。如果直接出首帧：手机是英文、
+用户在 App 里选了阿语 → **每次启动先闪一帧英文 LTR，再整屏镜像成阿语**。
+（窄屏测试最早就是在这一帧里抓到英文标题溢出的——这一帧也会被布局、会出错。）
+
+```dart
+// app/app.dart —— _WanShopAppState.initState
+final binding = WidgetsBinding.instance..deferFirstFrame();   // 先别把画面送上屏
+ref.read(appLocaleProvider.future)
+    .then<void>((_) {}, onError: (Object _, StackTrace _) {})
+    .whenComplete(binding.allowFirstFrame);                    // 成功失败都必须放行
+```
+
+`deferFirstFrame` 期间 build/layout 照常进行，只是不把画面交给引擎——**原生启动图一直留着**，
+用户看到的第一帧就是正确语言。这正是 Flutter 自己的 `Localizations` 等异步翻译加载时用的机制。
+比"在 `main()` 里 await 预读再 override"好在：main.dart 保持极薄，读盘逻辑仍在 provider 里。
+⚠️ `allowFirstFrame` 漏调（比如只写在 `then` 里、读盘抛错就跳过）= App 永远停在启动图，所以用 `whenComplete`。
+≈ iOS 里让启动图多停留到首屏数据就绪。
 
 ### 8. 平台声明：不声明，系统不知道你支持哪些语言 ⭐⭐
 
@@ -269,6 +316,25 @@ Expected: '1.234,50 $'
 **⑦ integration_test 固定语言**：它跑在真机/模拟器上，设备是英文时中文断言全挂。
 用依赖注入把语言偏好换成"固定中文"，而不是去改设备语言——测试自给自足，换台设备也能跑。
 
+### 10. 复盘：一次代码审查的 7 条意见是怎么判的 ⭐⭐
+
+改完后跑了一轮代码审查，提出 7 条问题。处理原则：**每条先验证再动手**，能测量的就测量，
+修完再做"变异检查"——临时删掉修复，确认回归测试会变红（否则测试没有守住任何东西）。
+
+| 意见 | 结论 | 怎么验证的 | 处理 |
+|---|---|---|---|
+| 语言弹层连点会 pop 掉下面的页面 | ✅ 成立 | 挂起保存 + 连点两次 | 弹层加保存中标志（第 7 节）；顺带抓到弹层溢出 |
+| 结算的"购物车为空"被兜成通用文案 | ✅ 成立 | 读代码 | `CheckoutException` + `LocalizedException`（第 1 节） |
+| 阿语折扣负号跑到右边 | ✅ 成立 | 打印码点：intl 负数自带 LRM | 传负数、ARB 去掉 `-`（第 4 节） |
+| 冷启动先闪一帧系统语言 | ✅ 成立（原先当作已知取舍） | 测试断言 `sendFramesToEngine` | `deferFirstFrame`（第 7 节） |
+| 分类标题冻结在 extra 里 | ✅ 成立（原先留作练习） | 传旧快照 + 德语环境 | 按 slug 翻译 |
+| 手机号框的标签/图标被翻到左边 | ❌ **误报** | 读 TextField 源码 + 测量三个图标的 x 坐标 | 不改代码，把测量写进测试 |
+| 密码错误显示成"服务器出错（400）" | ✅ 成立（改造前就存在） | 读代码 | 登录路径 400/401 → `InvalidCredentialsException` |
+
+- 误报也有价值：它点出的担心（"强制 LTR 会不会把整个输入框都翻过去"）是合理的，
+  只是 Flutter 的实现恰好把两者分开了——把测量结果固化成测试，以后升级 Flutter 若行为变了会第一时间知道。
+- 自己也在复查里抓到一条：`describeError` 的注释声称"sealed 保证编译报错"，实际被 `_` 兜底分支架空（第 1 节）。
+
 ---
 
 ## 二、新 API / 概念速查表
@@ -280,7 +346,9 @@ Expected: '1.234,50 $'
 | `required-resource-attributes` | `NSLocalizedString` 的 comment | 强制模板 key 写 description | 只检查模板（en），译文 ARB 不需要 @ 元数据 |
 | `untranslated-messages-file` | String Catalog 翻译进度 | 输出缺失 key 报告 | 缺 key 不报错，只回退模板语言 |
 | ARB `format: simpleCurrency` | `NumberFormatter.currency` | `optionalParameters: {name: USD}` | 输出含 U+00A0；币种≠语言 |
-| ARB `format: percentPattern` | `NumberFormatter.percent` | 传**小数** 0.085 | 传 8.5 会显示 850% |
+| ARB `format: percentPattern` | `NumberFormatter.percent` | 传**小数** -0.085（折扣传负数） | 传 8.5 会显示 850%；别在译文里手写 `-` |
+| `WidgetsBinding.deferFirstFrame` / `allowFirstFrame` | 启动图停留到首屏数据就绪 | 异步依赖（语言偏好）就绪前按住首帧 | 必须保证 allow 一定被调用（`whenComplete`） |
+| `LocalizedException`（本项目接口） | `LocalizedError` | 应用层业务异常实现它自带文案 | 数据/领域层异常不要实现，只给类型 |
 | ARB `DateTime` + `yMd+Hm` | `DateFormatter.setLocalizedDateFormatFromTemplate` | 多个骨架用 `+` 连接 | 单测需 `initializeDateFormatting` |
 | ICU `zero/one/two/few/many/other` | `.stringsdict` 的 NSStringPluralRuleType | 按 CLDR 写该语言需要的类别 | `=1` 与 `one` 编译成同一参数；分支里用 `{count}` |
 | `Directionality` | `semanticContentAttribute` | 由 Localizations 自动提供 | 别手动包 `Directionality(rtl)` 去"模拟"阿语 |
@@ -298,12 +366,13 @@ Expected: '1.234,50 $'
 ```
 l10n.yaml                              + preferred-supported-locales / required-resource-attributes / untranslated 报告
 lib/l10n/
-  app_en.arb                           模板：91 个 key，每个带 description；金额/百分比/评分/日期带 format
+  app_en.arb                           模板：93 个 key，每个带 description；金额/百分比/评分/日期带 format
   app_zh.arb / app_de.arb / app_ar.arb 译文（ar 的两个复数写满六种形式）
   app_localizations*.dart              gen-l10n 生成物（入库，勿手改）
 lib/core/
-  error/failure.dart                   message 降级为诊断信息；NetworkException 加 NetworkIssue
-  error/error_messages.dart        ⭐  describeError：异常类型 → 当前语言文案（唯一翻译点）
+  error/failure.dart                   message 降级为诊断信息；NetworkException 加 NetworkIssue；
+                                       + InvalidCredentialsException（登录凭证错误）
+  error/error_messages.dart        ⭐  describeError + LocalizedException 扩展点；sealed switch 无默认分支
   text/normalize_digits.dart       ⭐  阿语/波斯语数字 → ASCII
   network/request_json.dart            抛异常时带上 NetworkIssue
   widgets/error_view.dart / run_ui_action.dart   重试按钮、"操作失败"走 ARB
@@ -311,19 +380,23 @@ lib/features/settings/             ⭐  新模块：App 内语言
   data/locale_storage.dart             存语言标签字符串，读失败降级跟随系统
   data/settings_dependencies.dart      localeStorageProvider（测试替换点）
   presentation/providers/locale_providers.dart   AppLocale（AsyncNotifier + 串行 + 保存成功才发布）
-  presentation/language_picker.dart    LanguageButton / LanguageMenuTile / 底部弹层 / endonym
+  presentation/language_picker.dart    LanguageButton / LanguageMenuTile / 底部弹层（防连点、可滚动）/ endonym
   api.dart / ui.dart                   公开入口
-lib/app/app.dart                       MaterialApp.locale ← appLocaleProvider
+lib/app/app.dart                       MaterialApp.locale ← appLocaleProvider；deferFirstFrame 等偏好读完再出首帧
+lib/app/checkout/checkout_controller.dart   CheckoutException（LocalizedException）：购物车为空 / 无可恢复订单
+lib/features/auth/data/auth_repository.dart  登录 400/401 → InvalidCredentialsException
 lib/features/orders/
   domain/order.dart                    OrderStatus 去掉中文 label
   presentation/order_status_text.dart  状态 → 文案（穷尽 switch）
   presentation/checkout_page.dart      表单本地化 + 手机号 LTR + 数字归一化 + OverflowBar 底栏
   presentation/orders_page.dart        时间/件数复数/金额走 ARB，删掉手搓的 _formatTime
 lib/features/products/presentation/
-  home_page.dart                       分类入口改为 slug → 翻译
+  category_names.dart                  slug → 当前语言分类名（经 products/ui.dart 导出）
+  home_page.dart                       分类入口按 slug 翻译；push 时只传 slug，不传翻译快照
   widgets/section_header.dart          EdgeInsetsDirectional + Expanded/ellipsis
   widgets/product_grid.dart            emptyHint 改可空
   product_detail_page.dart / widgets/product_card.dart   金额/折扣/评分/库存走 ARB
+lib/features/categories/presentation/category_products_page.dart   标题按 slug 用当前语言翻译
 lib/features/cart/presentation/cart_page.dart            AlignmentDirectional.centerEnd
 其余页面（login / profile / search / categories / favorites）：文案全部换成 l10n
 ios/Runner/Info.plist                  CFBundleLocalizations
@@ -332,8 +405,11 @@ android/app/src/main/AndroidManifest.xml + res/xml/locales_config.xml   localeCo
 测试：
   test/support/localized_app.dart      带 delegate 的测试宿主（默认 zh）
   test/l10n_test.dart                  语言清单/兜底、ARB 一致性、阿语六种复数、货币/百分比/日期、引号
-  test/i18n_support_test.dart          describeError、normalizeDigits、LocaleStorage、appLocaleProvider
-  test/i18n_app_test.dart              App 内切换语言端到端、窄屏 × 三语溢出冒烟、手机号 LTR
+  test/i18n_support_test.dart          describeError（含 LocalizedException / 凭证错误）、登录 400/401 映射、
+                                       normalizeDigits、LocaleStorage、appLocaleProvider
+  test/i18n_app_test.dart              App 内切换语言端到端、冷启动按住首帧、弹层防连点、分类标题按 slug 翻译、
+                                       窄屏 × 三语溢出冒烟、手机号 LTR（图标位置不变）
+  test/checkout_reliability_test.dart  + 购物车为空 / 无可恢复订单 → CheckoutException
   test/golden/section_header_golden_test.dart   + 阿语 RTL 基准图
   integration_test/app_flow_test.dart  固定中文，不受设备语言影响
 ```
@@ -354,6 +430,10 @@ android/app/src/main/AndroidManifest.xml + res/xml/locales_config.xml   localeCo
 10. 切语言时为什么要"保存成功才发布"？语言列表里的名字为什么不翻译？
 11. 德语下单按钮为什么必须是 "Zahlungspflichtig bestellen"？为什么不用 `Flexible` 解决按钮太长？
 12. `Info.plist` 不声明 `CFBundleLocalizations` 会怎样？用户在 iOS 设置里给 App 选的语言，怎么进到 Flutter？
+13. 为什么 `"-{percent}"` 在阿语下会显示成 `9%-`？正确做法是什么？
+14. `switch (error) { …sealed 子类…, _ => … }` 为什么起不到"新增子类编译报错"的作用？
+15. 冷启动怎样做到"第一帧就是用户选的语言"？`allowFirstFrame` 为什么要放在 `whenComplete` 里？
+16. 为什么翻译好的分类名不能通过路由 `extra` 传？`CheckoutException` 为什么可以依赖 AppLocalizations，而 `InvalidCredentialsException` 不行？
 
 ---
 
@@ -365,8 +445,9 @@ android/app/src/main/AndroidManifest.xml + res/xml/locales_config.xml   localeCo
 2. **服务端内容**：分类名、商品名来自 DummyJSON，不在 ARB 里，切到德语依然是英文。
    给 dio 加一个拦截器，把当前语言写进 `Accept-Language` 请求头（提示：拦截器拿不到 context，
    想想怎么从 `appLocaleProvider` + 系统语言算出"实际生效的语言"）。真实后端会据此返回对应语言的内容。
-3. **分类页标题快照**：首页点分类时，通过 `extra` 把**翻译后的**分类名传给分类商品页。
-   在分类商品页里切换语言，标题还是旧语言——为什么？改成只传 slug、在目标页翻译。
+3. **复现一个已修复的 bug**：把 `category_products_page.dart` 的标题改回直接用路由传来的 `title`，
+   跑 `flutter test test/i18n_app_test.dart`，看哪条用例变红、报错信息是什么，再改回来。
+   （这就是第 10 节说的"变异检查"：确认测试真的守住了修复。）
 4. **伪本地化**（pseudo-localization）：写一个脚本，把 `app_en.arb` 的每条文案变成 `[!!! Ŝîĝñ îñ !!!]`
    这种"加长 + 变音符"的版本生成 `app_xx.arb`。不用懂任何外语，就能在真机上一眼找出没走 ARB 的硬编码、以及会溢出的布局。
 5. **App 显示名本地化**：桌面上的 App 名字还是 "Wan Android"。iOS 用 `InfoPlist.strings`，

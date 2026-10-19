@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +16,7 @@ import 'package:wan_android/features/cart/ui.dart';
 import 'package:wan_android/features/categories/data/categories_dependencies.dart';
 import 'package:wan_android/features/categories/data/categories_repository.dart';
 import 'package:wan_android/features/categories/domain/category.dart';
+import 'package:wan_android/features/categories/ui.dart';
 import 'package:wan_android/features/orders/ui.dart';
 import 'package:wan_android/features/products/data/product_list_response.dart';
 import 'package:wan_android/features/products/data/products_dependencies.dart';
@@ -141,6 +144,37 @@ void main() {
       expect(find.text('首页'), findsNothing);
     });
 
+    testWidgets('冷启动：语言偏好读完之前首帧不上屏（不会先闪一帧系统语言）', (tester) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      final storage = MemoryLocaleStorage(const Locale('ar'))
+        ..loadGate = Completer<void>();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            categoriesRepositoryProvider.overrideWithValue(
+              _FakeCategoriesRepository(),
+            ),
+            productsRepositoryProvider.overrideWithValue(
+              _FakeProductsRepository(),
+            ),
+            authStorageProvider.overrideWithValue(_FakeAuthStorage()),
+            localeStorageProvider.overrideWithValue(storage),
+          ],
+          child: const WanShopApp(),
+        ),
+      );
+      // 读盘没完成：deferFirstFrame 生效，画面不送给引擎（真机上原生启动图一直留着）。
+      expect(tester.binding.sendFramesToEngine, isFalse);
+
+      storage.loadGate!.complete();
+      await tester.pumpAndSettle();
+      expect(tester.binding.sendFramesToEngine, isTrue);
+      // 第一帧上屏时已经是用户选的阿语 RTL，而不是系统的英文 LTR。
+      expect(find.text('الرئيسية'), findsWidgets);
+      expect(directionOfTabBar(tester), TextDirection.rtl);
+    });
+
     testWidgets('切到阿语：文案 + RTL 一起生效；切回跟随系统恢复中文 LTR', (tester) async {
       final storage = await pumpApp(tester);
 
@@ -157,6 +191,63 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('首页'), findsWidgets);
       expect(directionOfTabBar(tester), TextDirection.ltr);
+    });
+  });
+
+  group('语言弹层 / 分类标题', () {
+    testWidgets('保存中连点两个语言：只生效第一个，且只关闭弹层、不误关下面的页面', (tester) async {
+      final storage = MemoryLocaleStorage()..gate = Completer<void>();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authStorageProvider.overrideWithValue(_FakeAuthStorage()),
+            localeStorageProvider.overrideWithValue(storage),
+          ],
+          child: localizedApp(const LoginPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.translate));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Deutsch'));
+      await tester.pump();
+      await tester.tap(find.text('English'), warnIfMissed: false); // 保存中，应被忽略
+      await tester.pump();
+
+      storage.gate!.complete();
+      await tester.pumpAndSettle();
+      expect(storage.persisted, const Locale('de'));
+      expect(find.text('Deutsch'), findsNothing); // 弹层已关
+      expect(find.byType(LoginPage), findsOneWidget); // 下面的页面还在
+    });
+
+    testWidgets('分类商品页标题按 slug 用当前语言翻译，不用路由传来的旧文案', (tester) async {
+      Future<void> pumpCategory(String slug, String title) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              productsRepositoryProvider.overrideWithValue(
+                _FakeProductsRepository(),
+              ),
+            ],
+            child: localizedApp(
+              CategoryProductsPage(slug: slug, title: title),
+              locale: const Locale('de'),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      // 模拟"在中文下 push、之后切到德语"：传进来的是旧的中文快照。
+      await pumpCategory('smartphones', '手机');
+      expect(find.widgetWithText(AppBar, 'Handys'), findsOneWidget);
+      expect(find.text('手机'), findsNothing);
+
+      // 服务端分类（本地没有翻译）仍用路由传来的名字。
+      await pumpCategory('groceries', 'Groceries');
+      expect(find.widgetWithText(AppBar, 'Groceries'), findsOneWidget);
     });
   });
 
@@ -255,6 +346,14 @@ void main() {
         Directionality.of(tester.element(find.byType(EditableText).first)),
         TextDirection.rtl,
       );
+      // textDirection 只作用于输入文字本身（EditableText），不影响装饰：
+      // 手机号框的图标和其它两个框一样在右侧（RTL 的行首），表单对齐不乱。
+      final iconXs = [
+        Icons.person_outline,
+        Icons.phone_iphone,
+        Icons.location_on_outlined,
+      ].map((icon) => tester.getCenter(find.byIcon(icon)).dx).toSet();
+      expect(iconXs, hasLength(1));
     });
   });
 }

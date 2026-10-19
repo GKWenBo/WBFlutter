@@ -174,6 +174,12 @@ abstract class AppLocalizations {
   /// **'We couldn\'t read the data we received.'**
   String get errorParse;
 
+  /// Sign-in rejected by the server (wrong username or password)
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect username or password.'**
+  String get errorInvalidCredentials;
+
   /// Fallback error for anything we can't classify
   ///
   /// In en, this message translates to:
@@ -282,10 +288,10 @@ abstract class AppLocalizations {
   /// **'Product details'**
   String get productDetailTitle;
 
-  /// Discount badge next to the price. percent is a fraction (0.085 = 8.5%); the percent sign position follows the locale
+  /// Discount badge next to the price. percent is a NEGATIVE fraction (-0.085 = -8.5%); the minus sign, percent sign and bidi marks all come from the locale's number format, so don't add a '-' in the translation
   ///
   /// In en, this message translates to:
-  /// **'-{percent}'**
+  /// **'{percent}'**
   String discountBadge(double percent);
 
   /// Star rating with one decimal digit (4.5 / 4,5)
@@ -527,6 +533,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Place order'**
   String get submitOrder;
+
+  /// Error when the user retries checkout but there is no pending order
+  ///
+  /// In en, this message translates to:
+  /// **'There\'s no unfinished order to resume.'**
+  String get checkoutNothingToRetry;
 
   /// Checkout button label when the order exists but syncing the cart failed
   ///

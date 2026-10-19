@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/error/error_messages.dart';
 import '../../../l10n/app_localizations.dart';
 import '../domain/product.dart';
+import 'category_names.dart';
 import 'providers/products_providers.dart';
 import 'widgets/category_chip.dart';
 import 'widgets/home_banner.dart';
@@ -35,7 +36,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   //
   // M12：原来每项还带一个 label: '手机'。翻译文案要从 BuildContext 取，
   // 而 static const 里不可能有 context —— 所以常量只留"与语言无关"的 icon + slug，
-  // 文案在 build 时用 _categoryLabel 按 slug 翻译。（同理：别把翻译后的字符串缓存进常量/全局变量，
+  // 文案在 build 时用 localizedCategoryName 按 slug 翻译。（同理：别把翻译后的字符串缓存进常量/全局变量，
   // 切语言后它们不会跟着变。）
   static const _categories = <({IconData icon, String slug})>[
     (icon: Icons.phone_iphone, slug: 'smartphones'),
@@ -45,17 +46,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     (icon: Icons.camera_alt, slug: 'mobile-accessories'),
     (icon: Icons.spa, slug: 'beauty'),
   ];
-
-  static String _categoryLabel(AppLocalizations l10n, String slug) =>
-      switch (slug) {
-        'smartphones' => l10n.categoryPhones,
-        'laptops' => l10n.categoryLaptops,
-        'mens-watches' => l10n.categoryWatches,
-        'tops' => l10n.categoryFashion,
-        'mobile-accessories' => l10n.categoryAccessories,
-        'beauty' => l10n.categoryBeauty,
-        _ => slug,
-      };
 
   final _scrollController = ScrollController();
 
@@ -267,12 +257,14 @@ class _HomePageState extends ConsumerState<HomePage> {
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final c = _categories[i];
-          final label = _categoryLabel(l10n, c.slug);
+          final label = localizedCategoryName(l10n, c.slug) ?? c.slug;
           return CategoryChip(
             icon: c.icon,
             label: label,
-            // 点分类 → push 到分类页；slug 放进路径，展示名通过 extra 传（呼应 categories_page 的写法）。
-            onTap: () => context.push('/category/${c.slug}', extra: label),
+            // 点分类 → push 到分类页，只传 slug。
+            // M12：不再把翻译好的 label 塞进 extra——那是 push 时刻的快照，切语言后标题不会变；
+            // 分类商品页自己按 slug 用当前语言翻译（见 category_names.dart）。
+            onTap: () => context.push('/category/${c.slug}'),
           );
         },
       ),

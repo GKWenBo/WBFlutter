@@ -16,6 +16,7 @@
   "errorNoConnection": "Der Server ist nicht erreichbar. Bitte überprüfe deine Verbindung.",
   "errorServer": "Beim Server ist ein Fehler aufgetreten ({code}).",
   "errorParse": "Die empfangenen Daten konnten nicht gelesen werden.",
+  "errorInvalidCredentials": "Benutzername oder Passwort ist falsch.",
   "errorUnknown": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
   "actionFailed": "Aktion fehlgeschlagen: {reason}",
 
@@ -38,7 +39,7 @@
   "productsEmpty": "Keine Produkte gefunden",
 
   "productDetailTitle": "Produktdetails",
-  "discountBadge": "-{percent}",
+  "discountBadge": "{percent}",
   "ratingValue": "{rating}",
   "stockCount": "Auf Lager: {count}",
   "productDescription": "Produktbeschreibung",
@@ -85,6 +86,7 @@
   "addressRequired": "Bitte gib die Lieferadresse ein",
   "orderItems": "Artikelübersicht",
   "submitOrder": "Zahlungspflichtig bestellen",
+  "checkoutNothingToRetry": "Es gibt keine offene Bestellung, die fortgesetzt werden kann.",
   "retryCheckout": "Kauf erneut abschließen",
   "orderCreatedCartSyncFailed": "Bestellung erstellt, aber der Warenkorb konnte nicht synchronisiert werden. Tippe auf „Kauf erneut abschließen“.",
   "orderPlacedAddressNotSaved": "Bestellung aufgegeben. Die Standardadresse wurde nicht gespeichert – du kannst es auf der Bestellseite erneut versuchen.",

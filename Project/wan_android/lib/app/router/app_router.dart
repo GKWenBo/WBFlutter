@@ -133,6 +133,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
 
       // 某分类的商品页：slug 进路径，展示名通过 extra 传（不进 URL）。
+      // M12：extra 只用于分类页列出的服务端分类名；首页快捷入口不传 extra，
+      // 由分类商品页按 slug 用当前语言翻译（翻译好的字符串不能当快照传）。
       GoRoute(
         path: '/category/:slug',
         builder: (context, state) {

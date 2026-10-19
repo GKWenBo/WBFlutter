@@ -62,6 +62,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errorParse => 'تعذّرت قراءة البيانات المستلمة';
 
   @override
+  String get errorInvalidCredentials => 'اسم المستخدم أو كلمة المرور غير صحيحة';
+
+  @override
   String get errorUnknown => 'حدث خطأ ما، يرجى المحاولة مرة أخرى';
 
   @override
@@ -142,7 +145,7 @@ class AppLocalizationsAr extends AppLocalizations {
         intl.NumberFormat.percentPattern(localeName);
     final String percentString = percentNumberFormat.format(percent);
 
-    return '-$percentString';
+    return '$percentString';
   }
 
   @override
@@ -315,6 +318,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get submitOrder => 'إرسال الطلب';
+
+  @override
+  String get checkoutNothingToRetry => 'لا يوجد طلب غير مكتمل لاستئنافه';
 
   @override
   String get retryCheckout => 'إعادة محاولة إتمام الشراء';

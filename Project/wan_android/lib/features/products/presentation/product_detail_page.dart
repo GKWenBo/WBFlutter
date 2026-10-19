@@ -114,10 +114,13 @@ class _DetailView extends StatelessWidget {
                   color: scheme.errorContainer,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                // percentPattern 接收的是小数（0.085），% 号放前放后、要不要空格由语言决定
-                // （de "9 %"、ar "9‎%‎"、土耳其语甚至是 "%9"）。
+                // percentPattern 接收的是小数，% 号放前放后、要不要空格由语言决定
+                // （de "-9 %"、土耳其语甚至是 "%9"）。
+                // 传**负数**而不是在 ARB 里写 "-{percent}"：阿语是 RTL，裸的 ASCII 连字符在段首
+                // 会被双向算法判成从右往左，显示成 "9%-"；intl 格式化负数时会在负号前插一个
+                // LRM（U+200E）把它钉在数字左边。符号也是格式的一部分，交给 locale。
                 child: Text(
-                  l10n.discountBadge(p.discountPercentage / 100),
+                  l10n.discountBadge(-p.discountPercentage / 100),
                   style: TextStyle(
                     color: scheme.onErrorContainer,
                     fontSize: 12,

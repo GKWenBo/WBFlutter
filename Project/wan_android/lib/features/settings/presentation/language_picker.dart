@@ -74,11 +74,37 @@ class LanguageMenuTile extends ConsumerWidget {
   }
 }
 
-class _LanguageSheet extends ConsumerWidget {
+/// 底部弹层本体。用 State 持有"正在保存"标志：
+/// 保存要等写盘完成，这期间用户可能连点两个语言——如果每次点击都各自 select + pop，
+/// 第二次 pop 时弹层已经在退场动画里了，pop 掉的会是**弹层下面的页面**（比如登录页）。
+/// 所以保存中忽略后续点击，整个弹层只 pop 一次（≈ iOS 里提交中禁用按钮防重复触发）。
+class _LanguageSheet extends ConsumerStatefulWidget {
   const _LanguageSheet();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_LanguageSheet> createState() => _LanguageSheetState();
+}
+
+class _LanguageSheetState extends ConsumerState<_LanguageSheet> {
+  bool _saving = false;
+
+  Future<void> _choose(Locale? locale) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final saved = await runUiAction(
+      context,
+      () => ref.read(appLocaleProvider.notifier).select(locale),
+    );
+    if (!mounted) return;
+    if (saved) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _saving = false); // 失败（已提示）：允许重新选择
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final selected = ref.watch(appLocaleProvider).asData?.value;
 
@@ -90,32 +116,30 @@ class _LanguageSheet extends ConsumerWidget {
         (locale, languageEndonym(locale)),
     ];
 
-    Future<void> choose(Locale? locale) async {
-      final saved = await runUiAction(
-        context,
-        () => ref.read(appLocaleProvider.notifier).select(locale),
-      );
-      if (saved && context.mounted) Navigator.of(context).pop();
-    }
-
     return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            l10n.languagePickerTitle,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          for (final (locale, label) in options)
-            ListTile(
-              title: Text(label),
-              // 用对勾表示选中，而不是 RadioListTile：新版 Flutter 的 Radio 改成了 RadioGroup 托管，
-              // 单选列表用 ListTile + 对勾更直观，也 ≈ iOS 设置页的 checkmark 样式。
-              trailing: locale == selected ? const Icon(Icons.check) : null,
-              onTap: () => choose(locale),
+      // 底部弹层默认最多占屏高的 9/16：横屏、大字号、或者以后语言变多时，
+      // 固定的 Column 会溢出（Widget 测试在 800×600 画布上就抓到了溢出 23px）。
+      // 内容可能超过容器高度时就该可滚动 ≈ 给 UIStackView 外面套一个 UIScrollView。
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.languagePickerTitle,
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-        ],
+            const SizedBox(height: 8),
+            for (final (locale, label) in options)
+              ListTile(
+                title: Text(label),
+                // 用对勾表示选中，而不是 RadioListTile：新版 Flutter 的 Radio 改成了 RadioGroup 托管，
+                // 单选列表用 ListTile + 对勾更直观，也 ≈ iOS 设置页的 checkmark 样式。
+                trailing: locale == selected ? const Icon(Icons.check) : null,
+                enabled: !_saving, // 保存中整组变灰、不可点
+                onTap: () => _choose(locale),
+              ),
+          ],
+        ),
       ),
     );
   }

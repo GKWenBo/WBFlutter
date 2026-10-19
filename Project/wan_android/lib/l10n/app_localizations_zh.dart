@@ -57,6 +57,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get errorParse => '数据解析失败';
 
   @override
+  String get errorInvalidCredentials => '用户名或密码错误';
+
+  @override
   String get errorUnknown => '出了点问题，请稍后重试';
 
   @override
@@ -136,7 +139,7 @@ class AppLocalizationsZh extends AppLocalizations {
         intl.NumberFormat.percentPattern(localeName);
     final String percentString = percentNumberFormat.format(percent);
 
-    return '-$percentString';
+    return '$percentString';
   }
 
   @override
@@ -301,6 +304,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get submitOrder => '提交订单';
+
+  @override
+  String get checkoutNothingToRetry => '没有待恢复的订单';
 
   @override
   String get retryCheckout => '重试完成结算';

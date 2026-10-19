@@ -1,13 +1,18 @@
 import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wan_android/app/checkout/checkout_controller.dart';
 import 'package:wan_android/core/error/error_messages.dart';
 import 'package:wan_android/core/error/failure.dart';
 import 'package:wan_android/core/storage/json_preferences_store.dart';
 import 'package:wan_android/core/text/normalize_digits.dart';
+import 'package:wan_android/features/auth/data/auth_repository.dart';
 import 'package:wan_android/features/settings/api.dart';
 import 'package:wan_android/features/settings/data/locale_storage.dart';
 import 'package:wan_android/features/settings/data/settings_dependencies.dart';
@@ -22,8 +27,14 @@ class MemoryLocaleStorage extends LocaleStorage {
   bool fail = false;
   Completer<void>? gate;
 
+  /// 让"读盘"卡住，用来验证冷启动时首帧被按住。
+  Completer<void>? loadGate;
+
   @override
-  Future<Locale?> load() async => persisted;
+  Future<Locale?> load() async {
+    await loadGate?.future;
+    return persisted;
+  }
 
   @override
   Future<void> save(Locale? locale) async {
@@ -31,6 +42,33 @@ class MemoryLocaleStorage extends LocaleStorage {
     if (fail) throw StateError('写入失败');
     persisted = locale;
   }
+}
+
+/// 固定返回某个状态码的 dio 适配器（不碰真实网络）。
+class StatusAdapter implements HttpClientAdapter {
+  StatusAdapter(this.status);
+  final int status;
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async => ResponseBody.fromString(
+    '{"message":"x"}',
+    status,
+    headers: {
+      Headers.contentTypeHeader: ['application/json'],
+    },
+  );
+  @override
+  void close({bool force = false}) {}
+}
+
+AuthRepository repoReturning(int status) {
+  final dio = Dio(BaseOptions(baseUrl: 'https://example.invalid'))
+    ..httpClientAdapter = StatusAdapter(status);
+  addTearDown(() => dio.close(force: true));
+  return AuthRepository(dio: dio);
 }
 
 class BrokenStore extends JsonPreferencesStore {
@@ -70,11 +108,56 @@ void main() {
       );
     });
 
+    test('登录凭证错误有专门文案，不再显示成"服务器出错"', () async {
+      final de = await AppLocalizations.delegate.load(const Locale('de'));
+      expect(
+        de.describeError(const InvalidCredentialsException('x')),
+        de.errorInvalidCredentials,
+      );
+    });
+
+    test('应用层业务异常通过 LocalizedException 自带文案（结算：购物车为空）', () async {
+      final zh = await AppLocalizations.delegate.load(const Locale('zh'));
+      expect(
+        zh.describeError(const CheckoutException(CheckoutFailure.emptyCart)),
+        zh.checkoutEmpty,
+      );
+      expect(
+        zh.describeError(
+          const CheckoutException(CheckoutFailure.nothingToRetry),
+        ),
+        zh.checkoutNothingToRetry,
+      );
+    });
+
     test('非 AppException（内部错误）不泄露开发者的中文诊断信息', () async {
       final de = await AppLocalizations.delegate.load(const Locale('de'));
       final text = de.describeError(StateError('本地数据保存失败'));
       expect(text, de.errorUnknown);
       expect(text, isNot(contains('本地')));
+    });
+  });
+
+  group('AuthRepository.login：区分"密码错"和"服务器错"', () {
+    test('登录接口 400 → InvalidCredentialsException', () async {
+      await expectLater(
+        repoReturning(400).login('u', 'p'),
+        throwsA(isA<InvalidCredentialsException>()),
+      );
+    });
+
+    test('登录接口 500 仍是 ServerException', () async {
+      await expectLater(
+        repoReturning(500).login('u', 'p'),
+        throwsA(isA<ServerException>()),
+      );
+    });
+
+    test('/auth/me 的 401 是 token 失效，不被误判为密码错误', () async {
+      await expectLater(
+        repoReturning(401).fetchCurrentUser(),
+        throwsA(isA<ServerException>().having((e) => e.code, 'code', 401)),
+      );
     });
   });
 

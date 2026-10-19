@@ -94,6 +94,34 @@ void main() {
     return container;
   }
 
+  test('购物车为空时给出带原因的 CheckoutException（M12：可翻译，而非 StateError）', () async {
+    final container = containerFor(
+      CartMemory()..items = [],
+      OrderMemory(),
+      AddressMemory(),
+    );
+    final checkout = container.read(checkoutControllerProvider.notifier);
+    await expectLater(
+      checkout.submit(address),
+      throwsA(
+        isA<CheckoutException>().having(
+          (e) => e.reason,
+          'reason',
+          CheckoutFailure.emptyCart,
+        ),
+      ),
+    );
+    await expectLater(
+      checkout.retryPending(),
+      throwsA(
+        isA<CheckoutException>().having(
+          (e) => e.reason,
+          'reason',
+          CheckoutFailure.nothingToRetry,
+        ),
+      ),
+    );
+  });
   test('重复提交复用任务，期间新增商品与数量保留', () async {
     final cart = CartMemory();
     final orders = OrderMemory()..gate = Completer<void>();

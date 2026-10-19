@@ -141,10 +141,15 @@ CartSnapshot 在购物车队列内同时捕获行与累计新增数量。扣量�
 
 - **界面文案只来自 ARB**。数据层抛带类型的 `AppException`（附 `NetworkIssue`、状态码等结构化字段），
   `message` 只是开发者诊断信息；页面统一用 `l10n.describeError(error)` 翻译。
+  `AppException` 的翻译是**无默认分支**的 sealed switch，新增子类必须补文案。
+  应用层业务异常（如 `CheckoutException`）实现 `LocalizedException` 自带文案；数据/领域层异常不实现它。
 - **领域模型与常量不带文案**：枚举在展示层翻译（如 `order_status_text.dart`），
   `static const` 只存与语言无关的标识，构造参数默认值不能是文案。
 - **数字、金额、百分比、日期走 ARB 占位符格式**；币种是业务事实（USD），不随语言变化。
+  正负号、百分号也属于格式，不写进译文（负值直接传负数）。
   不解析、不比较格式化后的字符串（含 U+00A0、RLM/LRM 等不可见字符）。
+- **翻译后的字符串不跨越 build 保存**：不放进常量、全局变量或路由 `extra`；需要时由稳定标识（slug、枚举）在 build 时翻译。
+- 冷启动用 `deferFirstFrame` 等语言偏好读完再出首帧，`allowFirstFrame` 必须在成功和失败时都调用。
 - **新增模板 key 必须写 description**（`required-resource-attributes`），同词不同语境用不同 key；
   `l10n_test.dart` 检查各语言 key 集合与占位符一致。
 - **布局用逻辑方向**：左右不对称的间距/对齐用 `EdgeInsetsDirectional` / `AlignmentDirectional`；

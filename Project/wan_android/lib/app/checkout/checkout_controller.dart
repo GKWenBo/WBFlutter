@@ -1,12 +1,36 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/error/error_messages.dart';
 import '../../features/cart/api.dart';
 import '../../features/cart/models.dart';
 import '../../features/orders/api.dart';
 import '../../features/orders/models.dart';
+import '../../l10n/app_localizations.dart';
 
 final checkoutControllerProvider =
     NotifierProvider<CheckoutController, CheckoutState>(CheckoutController.new);
+
+/// 结算流程自身的失败原因（不是网络/存储错误）。
+enum CheckoutFailure { emptyCart, nothingToRetry }
+
+/// M12 进阶：结算协调器的业务异常。
+///
+/// 原来抛的是 `StateError('购物车为空')`——页面拿到后只能显示通用的"出了点问题"，
+/// 用户不知道该怎么办、重试也永远失败。改成带原因的类型，并通过 [LocalizedException]
+/// 自带当前语言的文案（协调器属于应用层，可以依赖 AppLocalizations；数据/领域层不行）。
+class CheckoutException implements LocalizedException {
+  const CheckoutException(this.reason);
+  final CheckoutFailure reason;
+
+  @override
+  String localizedMessage(AppLocalizations l10n) => switch (reason) {
+    CheckoutFailure.emptyCart => l10n.checkoutEmpty,
+    CheckoutFailure.nothingToRetry => l10n.checkoutNothingToRetry,
+  };
+
+  @override
+  String toString() => 'CheckoutException($reason)';
+}
 
 class CheckoutResult {
   const CheckoutResult({
@@ -55,7 +79,9 @@ class CheckoutController extends Notifier<CheckoutState> {
     }
     return _start(() async {
       final cart = await ref.read(cartProvider.notifier).capture();
-      if (cart.items.isEmpty) throw StateError('购物车为空');
+      if (cart.items.isEmpty) {
+        throw const CheckoutException(CheckoutFailure.emptyCart);
+      }
       final attempt = _CheckoutAttempt(cart, address);
       return _complete(attempt);
     });
@@ -65,7 +91,9 @@ class CheckoutController extends Notifier<CheckoutState> {
     if (_inFlight != null) return _inFlight!;
     final attempt = _attempt;
     if (attempt == null || attempt.order == null) {
-      return Future.error(StateError('没有待恢复的订单'));
+      return Future.error(
+        const CheckoutException(CheckoutFailure.nothingToRetry),
+      );
     }
     return _start(() => _complete(attempt));
   }
