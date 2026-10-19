@@ -56,7 +56,7 @@ lib/
     network/           #   dioProvider + AuthInterceptor + LoggingInterceptor
     storage/           #   AuthStorage：token（flutter_secure_storage）
     widgets/           #   ErrorView 等共享组件
-  features/<name>/     # 8 个业务模块：auth cart categories favorites orders products profile search
+  features/<name>/     # 9 个业务模块：auth cart categories favorites orders products profile search settings
     data/ domain/ presentation/   # feature 内再分三层
                                   # presentation/providers/ 放该模块的 Riverpod provider
   l10n/                # .arb 翻译源 + gen-l10n 生成物（均入库）
@@ -81,7 +81,7 @@ lib/
 | 序列化 | **json_serializable**（不用 freezed） |
 | 存储 | **shared_preferences**（购物车/收藏/订单/离线缓存，存 JSON 字符串）+ **flutter_secure_storage**（token） |
 | 图片 | **cached_network_image** |
-| 国际化 | **flutter_localizations + intl**，`.arb` → `flutter gen-l10n`，中英双语 |
+| 国际化 | **flutter_localizations + intl**，`.arb` → `flutter gen-l10n`；中 / 英 / 德 / 阿（RTL）四语，App 内可切换（`features/settings`） |
 | 测试 | **mocktail** + `ProviderContainer` 直测 provider + `matchesGoldenFile` + `integration_test` |
 
 **明确没有用**：freezed、drift/sqflite、bloc、get_it、alchemist。不要引入这些库"改进"现有代码。
@@ -119,7 +119,7 @@ lib/
 | M9 | 收藏 + 我的 + 离线缓存兜底 |
 | M10 | 下单结算（mock 闭环） |
 | M11 | 测试：mocktail / golden / integration_test |
-| M12 | 发布 + 平台集成：Flavor + i18n ⭐ |
+| M12 | 发布 + 平台集成：Flavor + i18n ⭐（进阶篇：全量文案 + 阿语 RTL + 德语 + App 内切换语言） |
 | M13 | 性能与收尾：收窄重建 / RepaintBoundary / 图片限解码 / lint 收紧 |
 
 ## 相关文档

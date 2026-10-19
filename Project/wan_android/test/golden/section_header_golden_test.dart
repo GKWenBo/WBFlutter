@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wan_android/features/products/presentation/widgets/section_header.dart';
 
+import '../support/localized_app.dart';
+
 // M11 教学重点：golden 测试 = Flutter 版"快照测试"。
 //
 // iOS 对照：≈ FBSnapshotTestCase / swift-snapshot-testing——
@@ -19,12 +21,14 @@ import 'package:wan_android/features/products/presentation/widgets/section_heade
 
 void main() {
   // 固定一个手机宽度的画布，让每次渲染尺寸一致（golden 对尺寸敏感）。
-  Widget host(Widget child) => MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: Scaffold(
-      body: Center(child: SizedBox(width: 375, child: child)),
-    ),
-  );
+  // M12：「查看全部」改成从 ARB 取文案，宿主要带国际化 delegate；默认 zh，和原基准图一致。
+  Widget host(Widget child, {Locale locale = const Locale('zh')}) =>
+      localizedApp(
+        Scaffold(
+          body: Center(child: SizedBox(width: 375, child: child)),
+        ),
+        locale: locale,
+      );
 
   testWidgets('SectionHeader 带「查看全部」的样子', (tester) async {
     await tester.pumpWidget(host(SectionHeader(title: '热门推荐', onMore: () {})));
@@ -41,6 +45,27 @@ void main() {
     await expectLater(
       find.byType(SectionHeader),
       matchesGoldenFile('goldens/section_header_plain.png'),
+    );
+  });
+
+  // M12 国际化进阶：RTL 镜像的"快照"。
+  // 同一个组件在阿语下应该整体左右翻转：标题贴右、「عرض الكل」按钮在左，
+  // 且标题那侧的留白仍是 16（EdgeInsetsDirectional 的 start 跟着跑到了右边）。
+  // 如果有人把 padding 改回 EdgeInsets.fromLTRB，这张图就会对不上——RTL 回归被 golden 自动拦住。
+  testWidgets('SectionHeader 在阿拉伯语（RTL）下整体镜像', (tester) async {
+    await tester.pumpWidget(
+      host(
+        SectionHeader(title: 'مقترحات', onMore: () {}),
+        locale: const Locale('ar'),
+      ),
+    );
+    expect(
+      Directionality.of(tester.element(find.byType(SectionHeader))),
+      TextDirection.rtl,
+    );
+    await expectLater(
+      find.byType(SectionHeader),
+      matchesGoldenFile('goldens/section_header_with_more_rtl.png'),
     );
   });
 }

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M12 国际化进阶：Android 13+ "按应用设置语言"（系统设置 → 应用 → 语言）的候选列表。
+  ≈ iOS Info.plist 里的 CFBundleLocalizations。
+  必须和 lib/l10n/*.arb 保持一致：这里列了但 ARB 没有的语言，用户选了也只会回退到英文。
+  用户在系统里选的语言会作为"系统语言"传给 Flutter，App 内的"跟随系统"选项就会用它。
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="zh-Hans" />
+    <locale android:name="de" />
+    <locale android:name="ar" />
+</locale-config>

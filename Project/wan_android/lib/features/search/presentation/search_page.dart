@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/error_messages.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../products/ui.dart';
 import 'providers/search_providers.dart';
 
@@ -44,6 +46,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Widget build(BuildContext context) {
     // 关键词为空时不去 watch 结果，直接显示提示。
     final hasQuery = _query.trim().isNotEmpty;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -51,8 +54,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           controller: _controller,
           autofocus: true,
           textInputAction: TextInputAction.search,
-          decoration: const InputDecoration(
-            hintText: '搜索商品',
+          decoration: InputDecoration(
+            hintText: l10n.searchHint,
             border: InputBorder.none,
           ),
           onChanged: _onChanged,
@@ -69,16 +72,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         ],
       ),
       body: !hasQuery
-          ? const Center(child: Text('输入关键词搜索商品'))
+          ? Center(child: Text(l10n.searchPrompt))
           : ref
                 .watch(searchResultsProvider(_query))
                 .when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('$e')),
+                  error: (e, _) => Center(child: Text(l10n.describeError(e))),
                   data: (products) => ProductGrid(
                     products: products,
-                    emptyHint: '没有找到与"$_query"相关的商品',
+                    // 引号也是语言的一部分：中文 “…”、德语 „…“、阿语 «…»，所以连引号一起放进 ARB。
+                    emptyHint: l10n.searchNoResults(_query),
                   ),
                 ),
     );

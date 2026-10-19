@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../l10n/app_localizations.dart';
+
 /// 商品卡片——首页商品网格的单元格，是最典型的可复用组件。
 /// 角色 ≈ 你的 UICollectionViewCell（但声明式、无需注册/复用标识符，框架负责回收）。
 class ProductCard extends StatelessWidget {
@@ -22,6 +24,7 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     return Card(
       margin: EdgeInsets.zero, // 卡片间距交给外层 Grid 统一控制，避免双重边距
       clipBehavior: Clip.antiAlias, // 让圆角连图片一起裁切（否则图片方角会盖过卡片圆角）
@@ -59,7 +62,8 @@ class ProductCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(8),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start, // 文字区左对齐
+                // start = 行首：中文/德语靠左，阿语自动靠右（M12 RTL；≈ NSTextAlignment.natural）。
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
@@ -71,7 +75,7 @@ class ProductCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        '\$${price.toStringAsFixed(2)}',
+                        l10n.priceValue(price), // M12：按语言格式化金额
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -82,7 +86,7 @@ class ProductCard extends StatelessWidget {
                       const Icon(Icons.star, size: 14, color: Colors.amber),
                       const SizedBox(width: 2),
                       Text(
-                        rating.toStringAsFixed(1),
+                        l10n.ratingValue(rating),
                         style: const TextStyle(fontSize: 12),
                       ),
                     ],

@@ -67,3 +67,56 @@ git diff --check
 
 文档链接检查范围为项目 README、CLAUDE.md 与 docs 下 Markdown 的本地链接；
 不将公网链接检查成功或模拟器测试成功推导为真机验收通过。
+
+---
+
+# 国际化完善验证记录（M12 进阶）
+
+日期：2026-10-19。全量文案抽取 + 阿拉伯语（RTL）/ 德语 + App 内切换语言；代码未提交、未推送。
+
+## 自动检查
+
+| 检查 | 结果 |
+|---|---|
+| `dart run build_runner build` | 0 项输出变化，`.g.dart` 与源码一致 |
+| `flutter gen-l10n` | 重新生成后与入库生成物逐字节一致；未翻译报告为 `{}` |
+| `dart format --output=none --set-exit-if-changed lib test integration_test` | 138 个文件，0 项待格式化 |
+| `flutter analyze --no-pub` | No issues found |
+| `flutter test --no-pub` | 132 项全部通过（原 87 项 + 新增 45 项） |
+| Golden | 原两张 `section_header` 基准图未更新且通过；新增 `section_header_with_more_rtl.png` |
+| 本地文档链接 | 62 项，0 项失效 |
+| `git diff --check` | 通过 |
+
+## 已验证的行为
+
+- ARB：四种语言各 91 个 key，key 集合与占位符与模板一致；`supportedLocales.first == en`。
+- 复数：阿语 0/1/2/3/10/11/99/100/103 分别落入 zero/one/two/few/few/many/many/other/few。
+- 格式：en/zh/de/ar 的金额、百分比、一位小数、日期输出；德语分隔为 U+00A0。
+- 错误：异常按类型翻译，内部错误不泄露中文诊断信息（含页面级断言）。
+- 语言偏好：读写往返、跟随系统、已移除语言与读取失败降级、保存成功才发布、保存失败保留原语言。
+- App：冷启动恢复德语、切阿语后文案与 `TextDirection.rtl` 生效、切回跟随系统恢复中文。
+- 窄屏（320pt）：zh/de/ar × App 外壳/登录/购物车/结算无溢出；阿语手机号输入框为 LTR。
+- 窄屏测试曾抓到两处真实溢出（`SectionHeader` 标题、结算底栏按钮），已修复并由该测试守护。
+- 阿语数字归一化：`١٣٨…` / `۱۳۸` 可通过手机号校验并以 ASCII 存储。
+
+## iOS 模拟器观察（非完整验收）
+
+iPhone 18 Pro / iOS 27.0，Xcode 27 RC。构建同样需要把部署目标临时覆盖为 15.0
+（命令行 `IPHONEOS_DEPLOYMENT_TARGET=15.0`，arm64-only，**项目声明未修改**）。
+
+- 跟随系统（中文）：首页、登录页文案正常，登录页 AppBar 出现语言按钮。
+- 以 `-AppleLanguages (ar)` 启动：首页整体镜像（Tab 顺序、搜索框、分类入口、`SectionHeader`、
+  Banner 指示点、DEV 角标位置），真实字体下阿语渲染正常。
+- **未完成**：该模拟器同时被另一个工作流使用（日志显示 `com.wenbo.WBLocalization` 经
+  CoreSimulatorBridge 被外部启动），为避免干扰，未在模拟器上操作语言弹层、未跑
+  `integration_test`；商品接口在模拟器内请求失败（显示通用错误文案），未能目测金额格式。
+  App 内切换语言的端到端链路由 Widget 测试覆盖。
+
+## 验收边界
+
+- 译文由开发者撰写，未经母语者审校；德语下单按钮采用 "Zahlungspflichtig bestellen"，未做法律审核。
+- 服务端内容（分类名、商品名）仍为接口原文，未实现 `Accept-Language`。
+- App 显示名（`CFBundleDisplayName` / `android:label`）未本地化；未加入繁体中文。
+- Android 未构建验证（`localeConfig` / `supportsRtl` 仅完成配置）。
+- `integration_test/app_flow_test.dart` 已固定为中文，但本轮未在设备上运行；
+  在 `flutter-tester` 无头环境下它因 sqflite 插件缺失失败，HEAD 版本同样失败，属既有限制。

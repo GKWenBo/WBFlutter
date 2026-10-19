@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +10,8 @@ import 'package:wan_android/features/products/data/products_dependencies.dart';
 import 'package:wan_android/features/products/data/products_repository.dart';
 import 'package:wan_android/features/products/domain/product.dart';
 import 'package:wan_android/features/products/presentation/product_detail_page.dart';
+
+import 'support/localized_app.dart';
 
 // 端到端一点的 widget 测试：真的"点一下"按钮，验证详情页 → 购物车这条链路真的通。
 // 比手动在模拟器里点更可靠、可重复运行、能进 CI。
@@ -77,7 +78,7 @@ void main() {
             _FakeProductsRepository(product),
           ),
         ],
-        child: const MaterialApp(home: ProductDetailPage(id: 1)),
+        child: localizedApp(const ProductDetailPage(id: 1)),
       ),
     );
 

@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/checkout/checkout_controller.dart';
+import '../../../core/error/error_messages.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/run_ui_action.dart';
+import '../../../l10n/app_localizations.dart';
 import '../domain/order.dart';
+import 'order_status_text.dart';
 import 'providers/orders_providers.dart';
 
 /// 订单列表页（/orders）。从"我的"页菜单进入，或下单成功后跳转过来。
@@ -16,17 +19,18 @@ class OrdersPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersState = ref.watch(ordersProvider);
     final checkout = ref.watch(checkoutControllerProvider);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('我的订单')),
+      appBar: AppBar(title: Text(l10n.ordersTitle)),
       body: Column(
         children: [
           if (checkout.needsRetry)
             ListTile(
               title: Text(
                 checkout.result!.needsCartRetry
-                    ? '订单已创建，购物车尚未同步'
-                    : '订单已创建，默认地址尚未保存',
+                    ? l10n.orderPendingCartSync
+                    : l10n.orderPendingAddressSave,
               ),
               trailing: TextButton(
                 onPressed: checkout.isSubmitting
@@ -36,18 +40,18 @@ class OrdersPage extends ConsumerWidget {
                             .read(checkoutControllerProvider.notifier)
                             .retryPending();
                       }),
-                child: const Text('重试'),
+                child: Text(l10n.retry),
               ),
             ),
           Expanded(
             child: ordersState.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => ErrorView(
-                message: '订单读取失败：$e',
+                message: l10n.ordersLoadFailed(l10n.describeError(e)),
                 onRetry: () => ref.invalidate(ordersProvider),
               ),
               data: (orders) => orders.isEmpty
-                  ? const Center(child: Text('还没有订单，去下一单试试吧'))
+                  ? Center(child: Text(l10n.ordersEmpty))
                   : ListView.separated(
                       padding: const EdgeInsets.all(12),
                       itemCount: orders.length,
@@ -71,6 +75,7 @@ class _OrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -80,11 +85,18 @@ class _OrderCard extends StatelessWidget {
       // 还自带箭头旋转动画）。它是 StatefulWidget，展开状态自己管，父组件无感。
       child: ExpansionTile(
         // 展开区域自己带 padding，收起标题区沿用 ListTile 布局，两者视觉对齐。
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        childrenPadding: const EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          12,
+        ), // 左右对称，RTL 无需改
         title: Row(
           children: [
-            Expanded(child: Text('单号 ${order.id}', style: text.titleSmall)),
-            // 状态角标：读增强枚举上的 label，UI 不写 switch。
+            Expanded(
+              child: Text(l10n.orderNumber(order.id), style: text.titleSmall),
+            ),
+            // 状态角标：M10 读增强枚举上的 label；M12 改由展示层按当前语言翻译。
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
@@ -92,7 +104,7 @@ class _OrderCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
-                order.status.label,
+                order.status.localizedLabel(l10n),
                 style: text.labelSmall?.copyWith(
                   color: scheme.onPrimaryContainer,
                 ),
@@ -102,9 +114,15 @@ class _OrderCard extends StatelessWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
+          // M12：时间 / 件数复数 / 金额全部交给 ARB 占位符格式化——
+          // 同一个订单，中文显示 "2026/3/7 09:05 · 共 3 件 · $1,234.50"，
+          // 德语显示 "7.3.2026 09:05 · 3 Artikel · 1.234,50 $"。
           child: Text(
-            '${_formatTime(order.createdAt)} · 共 ${order.totalCount} 件 · '
-            '\$${order.totalPrice.toStringAsFixed(2)}',
+            l10n.orderSummary(
+              order.createdAt,
+              l10n.orderItemCount(order.totalCount),
+              order.totalPrice,
+            ),
             style: text.bodySmall,
           ),
         ),
@@ -137,7 +155,7 @@ class _OrderCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '\$${item.unitPrice.toStringAsFixed(2)} × ${item.quantity}',
+                    l10n.unitPriceTimesQuantity(item.unitPrice, item.quantity),
                     style: text.bodySmall,
                   ),
                 ],
@@ -160,12 +178,5 @@ class _OrderCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  /// 手搓的时间格式化（yyyy-MM-dd HH:mm）。
-  /// 固定格式用于订单摘要；如需随语言变化，可使用已引入的 intl。
-  String _formatTime(DateTime t) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${t.year}-${two(t.month)}-${two(t.day)} ${two(t.hour)}:${two(t.minute)}';
   }
 }

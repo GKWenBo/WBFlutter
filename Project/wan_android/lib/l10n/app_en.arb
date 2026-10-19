@@ -1,23 +1,280 @@
 {
   "@@locale": "en",
+
   "navHome": "Home",
-  "@navHome": { "description": "Bottom tab: products home" },
+  "@navHome": { "description": "Bottom tab label: products home" },
   "navCategory": "Category",
-  "@navCategory": { "description": "Bottom tab: categories" },
+  "@navCategory": { "description": "Bottom tab label: categories" },
   "navCart": "Cart",
-  "@navCart": { "description": "Bottom tab: shopping cart" },
+  "@navCart": { "description": "Bottom tab label: shopping cart" },
   "navProfile": "Profile",
-  "@navProfile": { "description": "Bottom tab: user profile" },
+  "@navProfile": { "description": "Bottom tab label: user profile" },
 
   "cartItemCount": "{count, plural, =0{Cart is empty} =1{{count} item in cart} other{{count} items in cart}}",
   "@cartItemCount": {
-    "description": "Cart summary with ICU plural",
+    "description": "Cart summary on the profile page, ICU plural",
     "placeholders": { "count": { "type": "int" } }
   },
-
   "currentEnv": "Environment: {name}",
   "@currentEnv": {
     "description": "Shows the current build flavor on the profile page",
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": { "name": { "type": "String", "example": "dev" } }
+  },
+
+  "retry": "Retry",
+  "@retry": { "description": "Generic button: try the failed operation again" },
+  "reload": "Reload",
+  "@reload": { "description": "Button on the offline banner: reload data from the network" },
+
+  "errorNetworkTimeout": "The network timed out. Please try again later.",
+  "@errorNetworkTimeout": { "description": "Error shown when a request times out" },
+  "errorNoConnection": "Can't reach the server. Please check your connection.",
+  "@errorNoConnection": { "description": "Error shown when the device can't connect to the server" },
+  "errorServer": "The server ran into a problem ({code}).",
+  "@errorServer": {
+    "description": "Error shown when the server returns a non-2xx status code",
+    "placeholders": { "code": { "type": "String", "example": "500" } }
+  },
+  "errorParse": "We couldn't read the data we received.",
+  "@errorParse": { "description": "Error shown when the response can't be decoded" },
+  "errorUnknown": "Something went wrong. Please try again.",
+  "@errorUnknown": { "description": "Fallback error for anything we can't classify" },
+  "actionFailed": "Action failed: {reason}",
+  "@actionFailed": {
+    "description": "Snackbar after a user action (add to cart, clear cart, sign out…) fails",
+    "placeholders": { "reason": { "type": "String", "example": "Can't reach the server." } }
+  },
+
+  "priceValue": "{amount}",
+  "@priceValue": {
+    "description": "A single price. Prices are always in US dollars; only the formatting follows the locale",
+    "placeholders": {
+      "amount": { "type": "double", "format": "simpleCurrency", "optionalParameters": { "name": "USD" } }
+    }
+  },
+  "totalAmount": "Total: {amount}",
+  "@totalAmount": {
+    "description": "Order total in the cart / checkout bottom bar",
+    "placeholders": {
+      "amount": { "type": "double", "format": "simpleCurrency", "optionalParameters": { "name": "USD" } }
+    }
+  },
+  "unitPriceTimesQuantity": "{price} × {quantity}",
+  "@unitPriceTimesQuantity": {
+    "description": "Line item on checkout / order detail: unit price times quantity",
+    "placeholders": {
+      "price": { "type": "double", "format": "simpleCurrency", "optionalParameters": { "name": "USD" } },
+      "quantity": { "type": "int" }
+    }
+  },
+
+  "searchHint": "Search products",
+  "@searchHint": { "description": "Placeholder of the search box (home page and search page)" },
+  "recommendedForYou": "Recommended for you",
+  "@recommendedForYou": { "description": "Section title above the product grid on the home page" },
+  "seeAll": "See all",
+  "@seeAll": { "description": "Small text button on the right of a section title" },
+  "loadMoreFailed": "Couldn't load more. Tap to retry.",
+  "@loadMoreFailed": { "description": "Shown at the bottom of the product list when loading the next page fails" },
+  "offlineBanner": "You're offline. Showing the products from last time.",
+  "@offlineBanner": { "description": "Banner above the home product grid when data comes from the offline cache" },
+
+  "categoryPhones": "Phones",
+  "@categoryPhones": { "description": "Home page shortcut: smartphones category" },
+  "categoryLaptops": "Laptops",
+  "@categoryLaptops": { "description": "Home page shortcut: laptops category" },
+  "categoryWatches": "Watches",
+  "@categoryWatches": { "description": "Home page shortcut: watches category" },
+  "categoryFashion": "Fashion",
+  "@categoryFashion": { "description": "Home page shortcut: clothing category" },
+  "categoryAccessories": "Accessories",
+  "@categoryAccessories": { "description": "Home page shortcut: mobile accessories category" },
+  "categoryBeauty": "Beauty",
+  "@categoryBeauty": { "description": "Home page shortcut: beauty / cosmetics category" },
+  "productsEmpty": "No products found",
+  "@productsEmpty": { "description": "Empty state of a product grid" },
+
+  "productDetailTitle": "Product details",
+  "@productDetailTitle": { "description": "App bar title on the product detail page while loading / on error" },
+  "discountBadge": "-{percent}",
+  "@discountBadge": {
+    "description": "Discount badge next to the price. percent is a fraction (0.085 = 8.5%); the percent sign position follows the locale",
+    "placeholders": { "percent": { "type": "double", "format": "percentPattern" } }
+  },
+  "ratingValue": "{rating}",
+  "@ratingValue": {
+    "description": "Star rating with one decimal digit (4.5 / 4,5)",
+    "placeholders": {
+      "rating": { "type": "double", "format": "decimalPatternDigits", "optionalParameters": { "decimalDigits": 1 } }
+    }
+  },
+  "stockCount": "In stock: {count}",
+  "@stockCount": {
+    "description": "Remaining stock on the product detail page",
+    "placeholders": { "count": { "type": "int", "format": "decimalPattern" } }
+  },
+  "productDescription": "Description",
+  "@productDescription": { "description": "Section title above the product description" },
+  "favoriteAdd": "Add to favorites",
+  "@favoriteAdd": { "description": "Tooltip of the heart button when the product is not a favorite yet" },
+  "favoriteRemove": "Remove from favorites",
+  "@favoriteRemove": { "description": "Tooltip of the heart button when the product is already a favorite" },
+  "addToCart": "Add to cart",
+  "@addToCart": { "description": "Main button on the product detail page" },
+  "addedToCart": "Added to cart: {title}",
+  "@addedToCart": {
+    "description": "Snackbar after adding a product to the cart",
+    "placeholders": { "title": { "type": "String", "example": "iPhone 15 Pro" } }
+  },
+
+  "searchPrompt": "Type a keyword to search",
+  "@searchPrompt": { "description": "Search page body before the user typed anything" },
+  "searchNoResults": "No products match “{query}”",
+  "@searchNoResults": {
+    "description": "Empty state of the search results. Use the quotation marks of your language",
+    "placeholders": { "query": { "type": "String", "example": "phone" } }
+  },
+
+  "cartTitle": "Cart",
+  "@cartTitle": { "description": "App bar title of the cart page" },
+  "cartClear": "Clear cart",
+  "@cartClear": { "description": "Tooltip of the trash button on the cart page" },
+  "cartEmpty": "Your cart is empty. Go find something you like!",
+  "@cartEmpty": { "description": "Empty state of the cart page" },
+  "cartCheckout": "Check out",
+  "@cartCheckout": { "description": "Button in the cart bottom bar that opens the checkout page" },
+
+  "categoriesTitle": "Categories",
+  "@categoriesTitle": { "description": "App bar title of the categories page" },
+
+  "favoritesTitle": "My favorites",
+  "@favoritesTitle": { "description": "Favorites page title and the profile menu row that opens it" },
+  "favoritesEmpty": "No favorites yet. Tap ♥ on a product to save it.",
+  "@favoritesEmpty": { "description": "Empty state of the favorites page" },
+  "favoritesLoadFailed": "Couldn't load favorites: {reason}",
+  "@favoritesLoadFailed": {
+    "description": "Error state of the favorites page",
+    "placeholders": { "reason": { "type": "String" } }
+  },
+
+  "ordersTitle": "My orders",
+  "@ordersTitle": { "description": "Orders page title and the profile menu row that opens it" },
+  "ordersEmpty": "No orders yet. Why not place your first one?",
+  "@ordersEmpty": { "description": "Empty state of the orders page" },
+  "ordersLoadFailed": "Couldn't load orders: {reason}",
+  "@ordersLoadFailed": {
+    "description": "Error state of the orders page",
+    "placeholders": { "reason": { "type": "String" } }
+  },
+  "orderPendingCartSync": "Order created, but the cart hasn't synced yet",
+  "@orderPendingCartSync": { "description": "Warning row on the orders page; next to a Retry button" },
+  "orderPendingAddressSave": "Order created, but the default address hasn't been saved",
+  "@orderPendingAddressSave": { "description": "Warning row on the orders page; next to a Retry button" },
+  "orderNumber": "Order #{id}",
+  "@orderNumber": {
+    "description": "Order card title",
+    "placeholders": { "id": { "type": "String", "example": "1735632000000" } }
+  },
+  "orderItemCount": "{count, plural, =1{{count} item} other{{count} items}}",
+  "@orderItemCount": {
+    "description": "Total number of items in one order, used inside orderSummary",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "orderSummary": "{time} · {items} · {amount}",
+  "@orderSummary": {
+    "description": "Order card subtitle: creation time, item count (orderItemCount) and total price",
+    "placeholders": {
+      "time": { "type": "DateTime", "format": "yMd+Hm" },
+      "items": { "type": "String", "example": "3 items" },
+      "amount": { "type": "double", "format": "simpleCurrency", "optionalParameters": { "name": "USD" } }
+    }
+  },
+  "orderStatusSubmitted": "Submitted",
+  "@orderStatusSubmitted": { "description": "Order status badge" },
+  "orderStatusPaid": "Paid",
+  "@orderStatusPaid": { "description": "Order status badge" },
+  "orderStatusShipped": "Shipped",
+  "@orderStatusShipped": { "description": "Order status badge" },
+
+  "checkoutTitle": "Confirm order",
+  "@checkoutTitle": { "description": "App bar title of the checkout page" },
+  "checkoutEmpty": "Your cart is empty — nothing to check out.",
+  "@checkoutEmpty": { "description": "Checkout page body when the cart is empty" },
+  "shippingInfo": "Shipping details",
+  "@shippingInfo": { "description": "Section title above the address form" },
+  "recipientLabel": "Recipient",
+  "@recipientLabel": { "description": "Address form field: name of the person receiving the parcel" },
+  "recipientRequired": "Please enter the recipient's name",
+  "@recipientRequired": { "description": "Validation error of the recipient field" },
+  "phoneLabel": "Phone number",
+  "@phoneLabel": { "description": "Address form field" },
+  "phoneRequired": "Please enter a phone number",
+  "@phoneRequired": { "description": "Validation error of the phone field" },
+  "phoneInvalid": "The phone number must have 11 digits",
+  "@phoneInvalid": { "description": "Validation error of the phone field (the shop only ships to mainland China numbers)" },
+  "addressLabel": "Address",
+  "@addressLabel": { "description": "Address form field: full street address" },
+  "addressRequired": "Please enter the address",
+  "@addressRequired": { "description": "Validation error of the address field" },
+  "orderItems": "Items",
+  "@orderItems": { "description": "Section title above the read-only item list on checkout" },
+  "submitOrder": "Place order",
+  "@submitOrder": { "description": "Final button that places the order. Some markets have legal wording requirements (e.g. Germany)" },
+  "retryCheckout": "Retry checkout",
+  "@retryCheckout": { "description": "Checkout button label when the order exists but syncing the cart failed" },
+  "orderCreatedCartSyncFailed": "Order created, but syncing the cart failed. Tap retry to finish checking out.",
+  "@orderCreatedCartSyncFailed": { "description": "Snackbar on checkout" },
+  "orderPlacedAddressNotSaved": "Order placed. The default address wasn't saved — you can retry from the orders page.",
+  "@orderPlacedAddressNotSaved": { "description": "Snackbar after a successful order whose address couldn't be saved" },
+  "orderPlaced": "Order placed!",
+  "@orderPlaced": { "description": "Snackbar after a successful order" },
+  "orderFailed": "Couldn't place the order: {reason}",
+  "@orderFailed": {
+    "description": "Snackbar when placing the order fails",
+    "placeholders": { "reason": { "type": "String" } }
+  },
+
+  "profileTitle": "Profile",
+  "@profileTitle": { "description": "App bar title of the profile page" },
+  "logout": "Sign out",
+  "@logout": { "description": "Tooltip of the sign-out button on the profile page" },
+  "profileLoadFailed": "Couldn't load your profile: {reason}",
+  "@profileLoadFailed": {
+    "description": "Error state of the profile page",
+    "placeholders": { "reason": { "type": "String" } }
+  },
+  "notLoggedIn": "Not signed in",
+  "@notLoggedIn": { "description": "Profile page fallback when there is no user" },
+  "language": "Language",
+  "@language": { "description": "Tooltip of the language button and title of the language menu row" },
+  "languageFollowSystem": "System default",
+  "@languageFollowSystem": { "description": "Language option: use the phone's language" },
+  "languagePickerTitle": "Choose language",
+  "@languagePickerTitle": { "description": "Title of the language picker bottom sheet" },
+
+  "loginTitle": "Sign in",
+  "@loginTitle": { "description": "App bar title of the sign-in page" },
+  "loginTestAccount": "Test account: {username} / {password}",
+  "@loginTestAccount": {
+    "description": "Hint under the logo showing the demo credentials",
+    "placeholders": {
+      "username": { "type": "String", "example": "emilys" },
+      "password": { "type": "String", "example": "emilyspass" }
+    }
+  },
+  "usernameLabel": "Username",
+  "@usernameLabel": { "description": "Sign-in form field" },
+  "usernameRequired": "Please enter your username",
+  "@usernameRequired": { "description": "Validation error of the username field" },
+  "passwordLabel": "Password",
+  "@passwordLabel": { "description": "Sign-in form field" },
+  "passwordRequired": "Please enter your password",
+  "@passwordRequired": { "description": "Validation error of the password field" },
+  "loginSubmit": "Sign in",
+  "@loginSubmit": { "description": "Submit button of the sign-in form (separate key from the page title on purpose)" },
+  "loginFailed": "Sign-in failed: {reason}",
+  "@loginFailed": {
+    "description": "Snackbar when sign-in fails",
+    "placeholders": { "reason": { "type": "String" } }
   }
 }

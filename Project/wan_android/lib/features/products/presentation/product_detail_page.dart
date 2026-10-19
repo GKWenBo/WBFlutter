@@ -2,7 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/error_messages.dart';
 import '../../../core/widgets/run_ui_action.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../cart/api.dart';
 import '../../favorites/api.dart';
 import '../domain/product.dart';
@@ -18,18 +20,19 @@ class ProductDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncProduct = ref.watch(productProvider(id));
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       // data 态用 SliverAppBar（带大图），所以这里不要普通 AppBar；
       // 其它态给一个普通 AppBar（自带返回按钮）。用 switch 对 AsyncValue 模式匹配（呼应 M2 sealed）。
       appBar: switch (asyncProduct) {
         AsyncData() => null,
-        _ => AppBar(title: const Text('商品详情')),
+        _ => AppBar(title: Text(l10n.productDetailTitle)),
       },
       body: asyncProduct.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorBody(
-          message: '$e',
+          message: l10n.describeError(e),
           onRetry: () => ref.invalidate(productProvider(id)),
         ),
         data: (p) => _DetailView(product: p),
@@ -73,6 +76,7 @@ class _DetailView extends StatelessWidget {
   Widget _buildInfo(BuildContext context, Product p) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -85,8 +89,10 @@ class _DetailView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
+              // M12：金额交给 ARB 的 simpleCurrency 格式化——币种固定 USD（业务事实），
+              // 千分位/小数点/符号位置跟语言走（en $1,234.50 · de 1.234,50 $）。
               Text(
-                '\$${p.discountedPrice.toStringAsFixed(2)}',
+                l10n.priceValue(p.discountedPrice),
                 style: text.headlineSmall?.copyWith(
                   color: scheme.primary,
                   fontWeight: FontWeight.bold,
@@ -94,7 +100,7 @@ class _DetailView extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '\$${p.price.toStringAsFixed(2)}',
+                l10n.priceValue(p.price),
                 style: text.bodyMedium?.copyWith(
                   color: Colors.grey,
                   decoration:
@@ -108,8 +114,10 @@ class _DetailView extends StatelessWidget {
                   color: scheme.errorContainer,
                   borderRadius: BorderRadius.circular(6),
                 ),
+                // percentPattern 接收的是小数（0.085），% 号放前放后、要不要空格由语言决定
+                // （de "9 %"、ar "9‎%‎"、土耳其语甚至是 "%9"）。
                 child: Text(
-                  '-${p.discountPercentage.toStringAsFixed(0)}%',
+                  l10n.discountBadge(p.discountPercentage / 100),
                   style: TextStyle(
                     color: scheme.onErrorContainer,
                     fontSize: 12,
@@ -123,11 +131,11 @@ class _DetailView extends StatelessWidget {
             children: [
               const Icon(Icons.star, size: 16, color: Colors.amber),
               const SizedBox(width: 4),
-              Text(p.rating.toStringAsFixed(1)),
+              Text(l10n.ratingValue(p.rating)), // 4.5 / 4,5
               const SizedBox(width: 16),
               Icon(Icons.inventory_2_outlined, size: 16, color: scheme.outline),
               const SizedBox(width: 4),
-              Text('库存 ${p.stock}'),
+              Text(l10n.stockCount(p.stock)),
               if (p.brand != null) ...[
                 const SizedBox(width: 16),
                 Icon(Icons.sell_outlined, size: 16, color: scheme.outline),
@@ -149,7 +157,7 @@ class _DetailView extends StatelessWidget {
             ),
           ],
           const Divider(height: 32),
-          Text('商品介绍', style: text.titleMedium),
+          Text(l10n.productDescription, style: text.titleMedium),
           const SizedBox(height: 8),
           Text(p.description, style: text.bodyMedium?.copyWith(height: 1.5)),
         ],
@@ -262,6 +270,7 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
     // watch 派生的 isFavoriteProvider(id)（family + 派生的组合）：
     // 收藏列表变化时，只有"这个商品"的收藏态变了才会触发这里重建。
     final isFav = ref.watch(isFavoriteProvider(widget.product.id));
+    final l10n = AppLocalizations.of(context);
 
     return SafeArea(
       child: Padding(
@@ -275,7 +284,7 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
               isSelected: isFav,
               icon: const Icon(Icons.favorite_border),
               selectedIcon: const Icon(Icons.favorite, color: Colors.redAccent),
-              tooltip: isFav ? '取消收藏' : '收藏',
+              tooltip: isFav ? l10n.favoriteRemove : l10n.favoriteAdd,
               onPressed: _busy
                   ? null
                   : () => _perform(
@@ -286,7 +295,7 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
             ),
             Expanded(
               child: Text(
-                '\$${widget.product.discountedPrice.toStringAsFixed(2)}',
+                l10n.priceValue(widget.product.discountedPrice),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
@@ -300,10 +309,10 @@ class _AddToCartBarState extends ConsumerState<_AddToCartBar> {
                       () => ref
                           .read(cartProvider.notifier)
                           .addProduct(widget.product),
-                      message: '已加入购物车：${widget.product.title}',
+                      message: l10n.addedToCart(widget.product.title),
                     ),
               icon: const Icon(Icons.add_shopping_cart),
-              label: const Text('加入购物车'),
+              label: Text(l10n.addToCart),
             ),
           ],
         ),
@@ -331,7 +340,10 @@ class _ErrorBody extends StatelessWidget {
             child: Text(message, textAlign: TextAlign.center),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: onRetry, child: const Text('重试')),
+          ElevatedButton(
+            onPressed: onRetry,
+            child: Text(AppLocalizations.of(context).retry),
+          ),
         ],
       ),
     );

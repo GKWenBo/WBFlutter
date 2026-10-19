@@ -5,3 +5,19 @@ template-arb-file: app_en.arb           # 以英文为"模板"：键的定义与
 output-localization-file: app_localizations.dart  # 生成的入口文件名
 output-class: AppLocalizations          # 生成的类名：AppLocalizations.of(context)
 nullable-getter: false                  # of(context) 返回非空（配了 delegate 后一定有值），少写一堆 !
+
+# ---- M12 国际化进阶（加入 ar/de 后补的三项）----
+
+# supportedLocales 的顺序 = 兜底顺序：系统语言一个都不支持时（比如日语），
+# MaterialApp 会用列表里的【第一个】。gen-l10n 默认按字母排序 → ar 排第一，
+# 日语用户会莫名其妙看到阿拉伯语 + 整个界面镜像成从右往左。显式把 en 钉在第一位。
+preferred-supported-locales: [en]
+
+# 模板里每个 key 都必须带 @key.description（给翻译看的上下文）。
+# 同一个英文 "Sign in" 当标题和当按钮，德语/阿语可能是两种译法——没有上下文翻译只能瞎猜。
+# ≈ iOS 里 NSLocalizedString 的 comment 参数，这里由生成器强制，不写直接报错。
+required-resource-attributes: true
+
+# 把"某语言缺了哪些 key"写成报告（≈ Xcode String Catalog 里显示的翻译完成度）。
+# 放进 build/（已被 .gitignore），每次 gen-l10n 刷新；缺 key 时只回退模板语言，不会编译失败。
+untranslated-messages-file: build/untranslated_l10n.json

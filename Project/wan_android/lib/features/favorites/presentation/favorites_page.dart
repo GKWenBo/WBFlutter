@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/error_messages.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../products/ui.dart';
 import 'providers/favorites_providers.dart';
 
@@ -16,17 +18,18 @@ class FavoritesPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favState = ref.watch(favoritesProvider);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('我的收藏')),
+      appBar: AppBar(title: Text(l10n.favoritesTitle)),
       body: favState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorView(
-          message: '收藏读取失败：$e',
+          message: l10n.favoritesLoadFailed(l10n.describeError(e)),
           onRetry: () => ref.invalidate(favoritesProvider),
         ),
         data: (products) =>
-            ProductGrid(products: products, emptyHint: '还没有收藏的商品，去详情页点 ♥ 收藏吧'),
+            ProductGrid(products: products, emptyHint: l10n.favoritesEmpty),
       ),
     );
   }

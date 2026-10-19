@@ -134,7 +134,26 @@ CartSnapshot 在购物车队列内同时捕获行与累计新增数量。扣量�
 若进程在订单保存与购物车扣量之间退出，需人工核对本地订单与购物车；未来真实后端接入
 必须另行设计持久化恢复和服务端幂等，不能把内存检查点当成支付/交易保证。
 
-## 5. 风格、文档与验证
+## 5. 国际化约定
+
+支持 zh / en / de / ar（RTL），用户可在 App 内覆盖系统语言（`features/settings`）。
+完整讲解见 [M12 进阶讲义](lessons/M12-国际化进阶-RTL与多语言.md)，维护时遵守：
+
+- **界面文案只来自 ARB**。数据层抛带类型的 `AppException`（附 `NetworkIssue`、状态码等结构化字段），
+  `message` 只是开发者诊断信息；页面统一用 `l10n.describeError(error)` 翻译。
+- **领域模型与常量不带文案**：枚举在展示层翻译（如 `order_status_text.dart`），
+  `static const` 只存与语言无关的标识，构造参数默认值不能是文案。
+- **数字、金额、百分比、日期走 ARB 占位符格式**；币种是业务事实（USD），不随语言变化。
+  不解析、不比较格式化后的字符串（含 U+00A0、RLM/LRM 等不可见字符）。
+- **新增模板 key 必须写 description**（`required-resource-attributes`），同词不同语境用不同 key；
+  `l10n_test.dart` 检查各语言 key 集合与占位符一致。
+- **布局用逻辑方向**：左右不对称的间距/对齐用 `EdgeInsetsDirectional` / `AlignmentDirectional`；
+  Row 中长度由翻译决定的文字要可伸缩并有截断或换行策略；电话、邮箱等输入固定 LTR，
+  解析用户输入的数字前先 `normalizeDigits`。
+- **兜底语言固定为 en**（`preferred-supported-locales`）。新增语言需同时更新 ARB、
+  `Info.plist` 的 `CFBundleLocalizations`、Android `locales_config.xml` 与 `languageEndonym`。
+
+## 6. 风格、文档与验证
 
 - 中文注释解释机制与取舍，保留 M 模块历史标记；路径与示例描述当前实现。
 - 使用 Dart 格式化与 directives_ordering，简单装配不额外生成无业务价值的 provider 类。

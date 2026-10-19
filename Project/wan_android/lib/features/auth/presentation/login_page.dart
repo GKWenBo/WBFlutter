@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/error/error_messages.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../settings/ui.dart';
 import 'providers/auth_providers.dart';
 
 /// 登录页。≈ 你 iOS 里的 LoginViewController：一个 Form + 两个输入框 + 一个提交按钮。
@@ -40,9 +43,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (!mounted) return;
     final state = ref.read(authProvider);
     if (state.hasError) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('登录失败：${state.error}')));
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.loginFailed(l10n.describeError(state.error!))),
+        ),
+      );
     } else if (state.asData?.value != null) {
       // 登录成功：主动去"我的"。go_router 的 redirect 会再检查一遍，
       // 这时 isLoggedIn 已经是 true，不会被再次拦回登录页。
@@ -55,9 +61,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     // watch 而不是 read：登录请求进行中 authProvider 会先变成 AsyncLoading，
     // 按钮需要跟着这个状态显示"转圈"、禁止重复点击。
     final isSubmitting = ref.watch(authProvider).isLoading;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('登录')),
+      appBar: AppBar(
+        title: Text(l10n.loginTitle),
+        // M12：未登录用户进不了"我的"页，语言入口必须在登录页也放一个。
+        actions: const [LanguageButton()],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -74,33 +85,35 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '测试账号：emilys / emilyspass',
+                  l10n.loginTestAccount('emilys', 'emilyspass'),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: '用户名',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person_outline),
+                  decoration: InputDecoration(
+                    labelText: l10n.usernameLabel,
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.person_outline),
                   ),
                   // validator 返回非 null 就是"校验失败的提示文案"，返回 null 代表通过。
-                  validator: (value) =>
-                      (value == null || value.trim().isEmpty) ? '请输入用户名' : null,
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? l10n.usernameRequired
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true, // ≈ UITextField.isSecureTextEntry
-                  decoration: const InputDecoration(
-                    labelText: '密码',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline),
+                  decoration: InputDecoration(
+                    labelText: l10n.passwordLabel,
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
                   ),
-                  validator: (value) =>
-                      (value == null || value.isEmpty) ? '请输入密码' : null,
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? l10n.passwordRequired
+                      : null,
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
@@ -111,7 +124,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('登录'),
+                      : Text(l10n.loginSubmit),
                 ),
               ],
             ),

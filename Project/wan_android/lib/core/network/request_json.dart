@@ -28,11 +28,18 @@ AppException mapDioException(DioException error) {
       error.error is FormatException) {
     return const ParseException('响应 JSON 格式不正确');
   }
+  // M12：这里的中文只是开发者诊断信息；用户看到的文案由 UI 按类型 + issue 翻译。
   return switch (error.type) {
     DioExceptionType.connectionTimeout ||
     DioExceptionType.sendTimeout ||
-    DioExceptionType.receiveTimeout => const NetworkException('网络超时，请稍后重试'),
-    DioExceptionType.connectionError => const NetworkException('无法连接服务器，请检查网络'),
+    DioExceptionType.receiveTimeout => const NetworkException(
+      '网络超时',
+      issue: NetworkIssue.timeout,
+    ),
+    DioExceptionType.connectionError => const NetworkException(
+      '无法连接服务器',
+      issue: NetworkIssue.unreachable,
+    ),
     DioExceptionType.badResponse => ServerException(
       '服务器开小差了（${error.response?.statusCode}）',
       code: error.response?.statusCode,

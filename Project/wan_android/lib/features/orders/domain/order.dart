@@ -4,20 +4,22 @@ import '../../cart/models.dart';
 
 part 'order.g.dart';
 
-/// 订单状态：Dart 的**增强枚举**（enhanced enum）——枚举也能带字段和构造函数，
-/// ≈ Swift enum 的 rawValue / 计算属性，比"枚举 + 散落在 UI 里的 switch 转文案"干净。
+/// 订单状态。
 /// @JsonValue 指定序列化时存的字符串（存 'submitted' 而不是下标 0——
 /// 存下标的话以后往枚举中间插一个新状态，老数据全部错位）。
+///
+/// M10 时它是**增强枚举**，带一个中文 label 字段（≈ Swift enum 的 rawValue），UI 直接读 label。
+/// M12 国际化进阶把 label 拿掉了：domain 层不知道用户选了哪种语言，
+/// 写死中文的字段在德语/阿语界面里只能是错的。文案改由展示层按枚举值翻译
+/// （presentation/order_status_text.dart，穷尽 switch，加新状态编译器会提醒补翻译）。
+/// 增强枚举本身仍然好用——适合放**与语言无关**的东西，比如排序权重、能否取消。
 enum OrderStatus {
   @JsonValue('submitted')
-  submitted('已提交'),
+  submitted,
   @JsonValue('paid')
-  paid('已支付'),
+  paid,
   @JsonValue('shipped')
-  shipped('已发货');
-
-  final String label; // 给 UI 显示的中文文案
-  const OrderStatus(this.label);
+  shipped,
 }
 
 /// 订单行 = "快照的快照"。

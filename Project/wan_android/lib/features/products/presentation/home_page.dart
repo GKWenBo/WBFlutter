@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/error/error_messages.dart';
+import '../../../l10n/app_localizations.dart';
 import '../domain/product.dart';
 import 'providers/products_providers.dart';
 import 'widgets/category_chip.dart';
@@ -30,14 +32,30 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   // slug 必须是 DummyJSON 真实存在的分类（GET /products/categories 能查到的那些），
   // 瞎写一个不存在的 slug 不会报错，只会查到 total:0——这是接第三方 API 最容易踩的坑。
-  static const _categories = <({IconData icon, String label, String slug})>[
-    (icon: Icons.phone_iphone, label: '手机', slug: 'smartphones'),
-    (icon: Icons.laptop_mac, label: '电脑', slug: 'laptops'),
-    (icon: Icons.watch, label: '手表', slug: 'mens-watches'),
-    (icon: Icons.checkroom, label: '穿搭', slug: 'tops'),
-    (icon: Icons.camera_alt, label: '配件', slug: 'mobile-accessories'),
-    (icon: Icons.spa, label: '美妆', slug: 'beauty'),
+  //
+  // M12：原来每项还带一个 label: '手机'。翻译文案要从 BuildContext 取，
+  // 而 static const 里不可能有 context —— 所以常量只留"与语言无关"的 icon + slug，
+  // 文案在 build 时用 _categoryLabel 按 slug 翻译。（同理：别把翻译后的字符串缓存进常量/全局变量，
+  // 切语言后它们不会跟着变。）
+  static const _categories = <({IconData icon, String slug})>[
+    (icon: Icons.phone_iphone, slug: 'smartphones'),
+    (icon: Icons.laptop_mac, slug: 'laptops'),
+    (icon: Icons.watch, slug: 'mens-watches'),
+    (icon: Icons.checkroom, slug: 'tops'),
+    (icon: Icons.camera_alt, slug: 'mobile-accessories'),
+    (icon: Icons.spa, slug: 'beauty'),
   ];
+
+  static String _categoryLabel(AppLocalizations l10n, String slug) =>
+      switch (slug) {
+        'smartphones' => l10n.categoryPhones,
+        'laptops' => l10n.categoryLaptops,
+        'mens-watches' => l10n.categoryWatches,
+        'tops' => l10n.categoryFashion,
+        'mobile-accessories' => l10n.categoryAccessories,
+        'beauty' => l10n.categoryBeauty,
+        _ => slug,
+      };
 
   final _scrollController = ScrollController();
 
@@ -66,6 +84,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) {
     // ref.watch：订阅 provider，状态一变（loading→data→…）就重建本页（≈ 订阅 @Published）。
     final asyncProducts = ref.watch(productListProvider);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       body: SafeArea(
@@ -87,16 +106,19 @@ class _HomePageState extends ConsumerState<HomePage> {
               SliverToBoxAdapter(child: _buildSearchBar(context)),
               const SliverToBoxAdapter(child: SizedBox(height: 12)),
               const SliverToBoxAdapter(child: HomeBanner(imageUrls: _banners)),
-              SliverToBoxAdapter(child: _buildCategoryRow()),
+              SliverToBoxAdapter(child: _buildCategoryRow(l10n)),
               SliverToBoxAdapter(
-                child: SectionHeader(title: '为你推荐', onMore: () {}),
+                child: SectionHeader(
+                  title: l10n.recommendedForYou,
+                  onMore: () {},
+                ),
               ),
 
               // 三态渲染：AsyncValue.when 把 loading/error/data 三种情况一次写清。
               // 这里每个分支返回"一组 sliver"，用 ...展开（spread）拼进 slivers。
               ...asyncProducts.when(
                 loading: () => [_loadingSliver()],
-                error: (e, _) => [_errorSliver('$e')],
+                error: (e, _) => [_errorSliver(l10n.describeError(e))],
                 data: (feed) => [
                   // M9：这批数据是离线缓存兜底来的，就在网格上方亮一条横幅提示。
                   if (feed.isFromCache)
@@ -109,7 +131,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       child: TextButton(
                         onPressed: () =>
                             ref.read(productListProvider.notifier).loadMore(),
-                        child: const Text('加载更多失败，点击重试'),
+                        child: Text(l10n.loadMoreFailed),
                       ),
                     ),
                 ],
@@ -156,14 +178,15 @@ class _HomePageState extends ConsumerState<HomePage> {
   /// 或者像这里一样直接当普通 Widget 排进布局——后者跟着内容一起滚动、不用管移除时机，
   /// 更适合"这批数据本身是离线的"这种和内容绑定的提示。
   Widget _offlineBanner() {
+    final l10n = AppLocalizations.of(context);
     return MaterialBanner(
       leading: const Icon(Icons.wifi_off),
-      content: const Text('网络不可用，正在展示上次的商品数据'),
+      content: Text(l10n.offlineBanner),
       actions: [
         TextButton(
           // 和错误态的"重试"同一招：让 provider 失效重建，重新走一遍网络请求。
           onPressed: () => ref.invalidate(productListProvider),
-          child: const Text('重新加载'),
+          child: Text(l10n.reload),
         ),
       ],
     );
@@ -198,7 +221,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               ElevatedButton(
                 // 重试：让 provider 失效→重建→重新取数。
                 onPressed: () => ref.invalidate(productListProvider),
-                child: const Text('重试'),
+                child: Text(AppLocalizations.of(context).retry),
               ),
             ],
           ),
@@ -223,7 +246,10 @@ class _HomePageState extends ConsumerState<HomePage> {
           children: [
             Icon(Icons.search, size: 20, color: hint),
             const SizedBox(width: 8),
-            Text('搜索商品', style: TextStyle(color: hint)),
+            Text(
+              AppLocalizations.of(context).searchHint,
+              style: TextStyle(color: hint),
+            ),
           ],
         ),
       ),
@@ -231,7 +257,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   /// 横向滚动的分类入口。横向 ListView 必须有"有界高度"，故套 SizedBox。
-  Widget _buildCategoryRow() {
+  Widget _buildCategoryRow(AppLocalizations l10n) {
     return SizedBox(
       height: 112,
       child: ListView.separated(
@@ -241,11 +267,12 @@ class _HomePageState extends ConsumerState<HomePage> {
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final c = _categories[i];
+          final label = _categoryLabel(l10n, c.slug);
           return CategoryChip(
             icon: c.icon,
-            label: c.label,
+            label: label,
             // 点分类 → push 到分类页；slug 放进路径，展示名通过 extra 传（呼应 categories_page 的写法）。
-            onTap: () => context.push('/category/${c.slug}', extra: c.label),
+            onTap: () => context.push('/category/${c.slug}', extra: label),
           );
         },
       ),

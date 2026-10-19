@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -13,6 +14,8 @@ import 'package:wan_android/features/products/data/product_list_response.dart';
 import 'package:wan_android/features/products/data/products_dependencies.dart';
 import 'package:wan_android/features/products/data/products_repository.dart';
 import 'package:wan_android/features/products/domain/product.dart';
+import 'package:wan_android/features/settings/data/locale_storage.dart';
+import 'package:wan_android/features/settings/data/settings_dependencies.dart';
 
 // M11 教学重点：integration_test = Flutter 版端到端测试。
 //
@@ -54,6 +57,16 @@ const _product = Product(
   tags: null,
 );
 
+/// M12：下面的断言写的是中文文案。integration_test 跑在真机/模拟器上，
+/// 设备是英文时 App 会跟随系统显示英文、断言全挂——所以把"App 内语言"固定成中文。
+/// 用依赖注入替换语言偏好，而不是去改设备语言：测试自给自足，换台设备也能跑。
+class _ChineseLocaleStorage extends LocaleStorage {
+  @override
+  Future<Locale?> load() async => const Locale('zh');
+  @override
+  Future<void> save(Locale? locale) async {}
+}
+
 void main() {
   // 必须的第一步：换成 integration 版 binding。
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -89,6 +102,7 @@ void main() {
           categoriesRepositoryProvider.overrideWithValue(categories),
           productsRepositoryProvider.overrideWithValue(repo),
           authStorageProvider.overrideWithValue(_FakeAuthStorage()),
+          localeStorageProvider.overrideWithValue(_ChineseLocaleStorage()),
         ],
         child: const WanShopApp(),
       ),

@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/checkout/checkout_controller.dart';
+import '../../../core/error/error_messages.dart';
+import '../../../core/text/normalize_digits.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../cart/api.dart';
 import '../../cart/models.dart';
 import '../domain/order.dart';
@@ -72,10 +75,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     final address = ShippingAddress(
       name: _nameController.text.trim(),
-      phone: _phoneController.text.trim(),
+      // M12：阿语键盘输入的是 ١٣٨…，存盘前统一成 ASCII 数字（校验里也做了同样的归一化）。
+      phone: normalizeDigits(_phoneController.text.trim()),
       detail: _detailController.text.trim(),
     );
 
+    final l10n = AppLocalizations.of(context);
     try {
       final controller = ref.read(checkoutControllerProvider.notifier);
       final result = await (resuming
@@ -84,23 +89,25 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       if (!mounted) return;
       if (result.needsCartRetry) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('订单已创建，购物车同步失败，请点击重试完成结算')),
+          SnackBar(content: Text(l10n.orderCreatedCartSyncFailed)),
         );
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            result.needsAddressRetry ? '下单成功，默认地址尚未保存，可在订单页重试' : '下单成功！',
+            result.needsAddressRetry
+                ? l10n.orderPlacedAddressNotSaved
+                : l10n.orderPlaced,
           ),
         ),
       );
       context.pushReplacement('/orders');
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('下单失败：$error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.orderFailed(l10n.describeError(error)))),
+      );
     }
   }
 
@@ -111,45 +118,56 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // watch 购物车：结算页展示的清单/合计要和购物车实时一致。
     final cartItems = ref.watch(cartProvider).asData?.value ?? const [];
     final totalPrice = ref.watch(cartTotalPriceProvider);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('确认订单')),
+      appBar: AppBar(title: Text(l10n.checkoutTitle)),
       body: cartItems.isEmpty
-          ? const Center(child: Text('购物车是空的，没什么可结算的'))
+          ? Center(child: Text(l10n.checkoutEmpty))
           : Form(
               key: _formKey,
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  Text('收货信息', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    l10n.shippingInfo,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: '收货人',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person_outline),
+                    decoration: InputDecoration(
+                      labelText: l10n.recipientLabel,
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.person_outline),
                     ),
                     textInputAction: TextInputAction.next, // 键盘回车 = 跳下一格
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? '请填写收货人' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? l10n.recipientRequired
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _phoneController,
-                    decoration: const InputDecoration(
-                      labelText: '手机号',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.phone_iphone),
+                    decoration: InputDecoration(
+                      labelText: l10n.phoneLabel,
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.phone_iphone),
                     ),
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
+                    // M12：电话号码/邮箱/验证码这类"天生从左往右读"的内容，在阿语界面里也固定 LTR，
+                    // 否则光标和对齐会跑到右边，号码分段读起来是反的。
+                    // ≈ iOS 给 UITextField 设 semanticContentAttribute = .forceLeftToRight。
+                    textDirection: TextDirection.ltr,
                     validator: (v) {
-                      final phone = v?.trim() ?? '';
-                      if (phone.isEmpty) return '请填写手机号';
+                      // 先归一化：阿语键盘输入的 ١٣٨٠٠١٣٨٠٠٠ 也算 11 位数字。
+                      final phone = normalizeDigits(v?.trim() ?? '');
+                      if (phone.isEmpty) return l10n.phoneRequired;
                       // 教学从简：11 位数字。真实项目用正则或专门的校验库。
+                      // （这条规则本身也带地域性：只对中国大陆手机号成立，国际化时要换成按国家校验。）
                       if (phone.length != 11 || int.tryParse(phone) == null) {
-                        return '手机号应为 11 位数字';
+                        return l10n.phoneInvalid;
                       }
                       return null;
                     },
@@ -157,17 +175,21 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _detailController,
-                    decoration: const InputDecoration(
-                      labelText: '详细地址',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.location_on_outlined),
+                    decoration: InputDecoration(
+                      labelText: l10n.addressLabel,
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.location_on_outlined),
                     ),
                     maxLines: 2,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? '请填写详细地址' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? l10n.addressRequired
+                        : null,
                   ),
                   const SizedBox(height: 24),
-                  Text('商品清单', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    l10n.orderItems,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 8),
                   // 只读的商品清单：不用 ListView.builder 嵌套（外层已是 ListView），
                   // 结算清单条数有限，直接 map 成一组行即可。
@@ -180,15 +202,26 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           : SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                child: Row(
+                // M12 国际化进阶：原来是 Row[Expanded(合计), FilledButton]，按钮宽度完全由文案决定。
+                // 德语的下单按钮按法律要求必须写 "Zahlungspflichtig bestellen"（见讲义），
+                // 窄屏上合计 + 按钮放不进一行 → overflow。
+                // 改用 OverflowBar："放得下就横排，放不下就竖排"——
+                // 中文/英文照旧是一行（合计在行首、按钮在行尾，视觉和原来一样）；
+                // 德语窄屏自动变成两行（合计在上、按钮在下，都靠行尾）。
+                // 它本来就是为对话框按钮的多语言场景设计的，≈ iOS 里 UIStackView 在
+                // 大字号/长文案时把 axis 从 horizontal 切到 vertical 的那种自适应。
+                // （别用 Flexible 平分宽度：中文的合计也只剩一半，在 375pt 屏上就会被折行。）
+                child: OverflowBar(
+                  alignment: MainAxisAlignment.spaceBetween,
+                  spacing: 12,
+                  overflowAlignment: OverflowBarAlignment.end,
+                  overflowSpacing: 8,
                   children: [
-                    Expanded(
-                      child: Text(
-                        '合计：\$${totalPrice.toStringAsFixed(2)}',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Text(
+                      l10n.totalAmount(totalPrice),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     FilledButton(
@@ -203,8 +236,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             )
                           : Text(
                               checkout.result?.needsCartRetry == true
-                                  ? '重试完成结算'
-                                  : '提交订单',
+                                  ? l10n.retryCheckout
+                                  : l10n.submitOrder,
                             ),
                     ),
                   ],
@@ -250,7 +283,9 @@ class _CheckoutRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            '\$${item.unitPrice.toStringAsFixed(2)} × ${item.quantity}',
+            AppLocalizations.of(
+              context,
+            ).unitPriceTimesQuantity(item.unitPrice, item.quantity),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

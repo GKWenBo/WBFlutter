@@ -12,6 +12,8 @@ import 'package:wan_android/features/products/data/products_repository.dart';
 import 'package:wan_android/features/products/ui.dart';
 import 'package:wan_android/features/profile/ui.dart';
 
+import 'support/localized_app.dart';
+
 class BrokenLogoutStorage extends AuthStorage {
   @override
   Future<String?> readAccessToken() async => null;
@@ -35,7 +37,7 @@ void main() {
         overrides: [
           authStorageProvider.overrideWithValue(BrokenLogoutStorage()),
         ],
-        child: const MaterialApp(home: ProfilePage()),
+        child: localizedApp(const ProfilePage()),
       ),
     );
     await tester.pumpAndSettle();
@@ -52,7 +54,7 @@ void main() {
         overrides: [
           productsRepositoryProvider.overrideWithValue(OfflineRepository()),
         ],
-        child: const MaterialApp(home: HomePage()),
+        child: localizedApp(const HomePage()),
       ),
     );
     await tester.pumpAndSettle();
@@ -61,7 +63,10 @@ void main() {
     );
     await expectLater(indicator.onRefresh(), completes);
     await tester.pumpAndSettle();
-    expect(find.textContaining('断网'), findsWidgets);
+    // M12：页面展示的是按异常类型翻译后的文案（NetworkIssue.unreachable → 无法连接服务器…），
+    // 异常里的诊断信息 '断网' 是写给开发者的，不该原样出现在界面上（换成德语用户会看到中文）。
+    expect(find.textContaining('无法连接服务器'), findsWidgets);
+    expect(find.textContaining('断网'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

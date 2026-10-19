@@ -11,6 +11,8 @@ import 'package:wan_android/features/products/models.dart';
 import 'package:wan_android/features/products/presentation/providers/products_providers.dart';
 import 'package:wan_android/features/products/ui.dart';
 
+import 'support/localized_app.dart';
+
 const product = Product(
   id: 1,
   title: '测试商品',
@@ -47,7 +49,7 @@ void main() {
           cartStorageProvider.overrideWithValue(storage),
           productProvider(1).overrideWith((ref) async => product),
         ],
-        child: const MaterialApp(home: ProductDetailPage(id: 1)),
+        child: localizedApp(const ProductDetailPage(id: 1)),
       ),
     );
     await tester.pumpAndSettle();
@@ -94,7 +96,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [cartStorageProvider.overrideWithValue(storage)],
-        child: const MaterialApp(home: CartPage()),
+        child: localizedApp(const CartPage()),
       ),
     );
     await tester.pumpAndSettle();

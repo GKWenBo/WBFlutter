@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/error/error_messages.dart';
 import '../../../core/widgets/error_view.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../products/ui.dart';
 import 'providers/categories_providers.dart';
 
@@ -26,7 +28,7 @@ class CategoryProductsPage extends ConsumerWidget {
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorView(
-          message: '$e',
+          message: AppLocalizations.of(context).describeError(e),
           onRetry: () => ref.invalidate(categoryProductsProvider(slug)),
         ),
         data: (products) => ProductGrid(products: products),

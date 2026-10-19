@@ -81,7 +81,7 @@ lib/
 ```
 
 各 feature：`products`（首页商品流 + 详情）、`categories`、`search`、`cart`、`auth`、
-`favorites`、`orders`、`profile`。
+`favorites`、`orders`、`profile`、`settings`（App 内语言）。
 
 ### 关键约定
 
@@ -167,4 +167,5 @@ DummyJSON ──dio──▶ Repository ──▶ Riverpod Notifier(AsyncValue: 
 | M10 下单结算 | [M10-下单结算.md](docs/lessons/M10-下单结算.md) |
 | M11 测试 | [M11-测试.md](docs/lessons/M11-测试.md) |
 | M12 发布与平台集成 ⭐ | [M12-发布与平台集成.md](docs/lessons/M12-发布与平台集成.md) |
+| M12 进阶：国际化 RTL 与多语言 ⭐ | [M12-国际化进阶-RTL与多语言.md](docs/lessons/M12-国际化进阶-RTL与多语言.md) |
 | M13 性能与收尾 | [M13-性能与收尾.md](docs/lessons/M13-性能与收尾.md) |

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_env.dart';
+import '../../../core/error/error_messages.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/run_ui_action.dart';
 import '../../../l10n/app_localizations.dart';
@@ -10,24 +11,26 @@ import '../../auth/api.dart';
 import '../../cart/api.dart';
 import '../../favorites/api.dart';
 import '../../orders/api.dart';
+import '../../settings/ui.dart';
 
 /// 我的页。M8 起接入登录鉴权：go_router 的 redirect 已经保证"未登录进不了这一页"
 /// （见 app/router/app_router.dart），所以这里只管展示已登录用户的信息 + 登出入口。
-/// M9 加菜单区（我的收藏入口）。
+/// M9 加菜单区（我的收藏入口）。M12 国际化进阶加"语言"行。
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的'),
+        title: Text(l10n.profileTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: '退出登录',
+            tooltip: l10n.logout,
             onPressed: () => runUiAction(
               context,
               () => ref.read(authProvider.notifier).logout(),
@@ -38,13 +41,13 @@ class ProfilePage extends ConsumerWidget {
       body: authState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => ErrorView(
-          message: '加载用户信息失败：$error',
+          message: l10n.profileLoadFailed(l10n.describeError(error)),
           onRetry: () => ref.invalidate(authProvider),
         ),
         data: (user) {
           if (user == null) {
             // 正常流程走不到这里（redirect 已拦截）；留个兜底避免空白页。
-            return const Center(child: Text('未登录'));
+            return Center(child: Text(l10n.notLoggedIn));
           }
           return ListView(
             padding: const EdgeInsets.all(24),
@@ -93,6 +96,7 @@ class ProfilePage extends ConsumerWidget {
     // 只订阅派生的"数量"provider：列表内容怎么变不关心，数字变了才重建这块。
     final favCount = ref.watch(favoritesCountProvider);
     final orderCount = ref.watch(ordersCountProvider);
+    final l10n = AppLocalizations.of(context);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -101,7 +105,7 @@ class ProfilePage extends ConsumerWidget {
           _menuRow(
             context,
             icon: Icons.favorite_border,
-            title: '我的收藏',
+            title: l10n.favoritesTitle,
             count: favCount,
             onTap: () => context.push('/favorites'),
           ),
@@ -109,10 +113,14 @@ class ProfilePage extends ConsumerWidget {
           _menuRow(
             context,
             icon: Icons.receipt_long_outlined,
-            title: '我的订单',
+            title: l10n.ordersTitle,
             count: orderCount,
             onTap: () => context.push('/orders'),
           ),
+          const Divider(height: 1, indent: 56),
+          // M12：语言行由 settings 模块提供（通过 ui.dart 公开入口引用），
+          // 本页不关心"语言存在哪、怎么切"。
+          const LanguageMenuTile(),
         ],
       ),
     );
@@ -161,6 +169,7 @@ class ProfilePage extends ConsumerWidget {
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
+          // chevron_right 自带 matchTextDirection: true：阿语下自动翻成向左（M12）。
           const Icon(Icons.chevron_right),
         ],
       ),

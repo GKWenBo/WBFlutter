@@ -23,4 +23,5 @@
 | M10 | 下单结算（mock 闭环）| [M10-下单结算.md](M10-下单结算.md) |
 | M11 | 测试（mocktail/golden/integration_test）| [M11-测试.md](M11-测试.md) |
 | M12 | 发布 + 平台集成（Flavor/i18n）⭐ | [M12-发布与平台集成.md](M12-发布与平台集成.md) |
+| M12 进阶 | 国际化完善：阿拉伯语 RTL / 德语 / App 内切换语言 / i18n 测试 ⭐ | [M12-国际化进阶-RTL与多语言.md](M12-国际化进阶-RTL与多语言.md) |
 | M13 | 性能与收尾（DevTools/收窄重建/RepaintBoundary/lint）| [M13-性能与收尾.md](M13-性能与收尾.md) |
