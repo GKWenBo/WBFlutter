@@ -72,7 +72,7 @@
 lib/features/products/presentation/
   home_page.dart             首页（M1 是 Stateless，M4 升级 Stateful 做分页）
   widgets/
-    home_banner.dart         Banner 轮播（页码状态封在内部）
+    home_banner.dart         无限自动轮播（虚拟页取模、手势/生命周期暂停、页码状态封在内部）
     category_chip.dart        横向分类入口的单个圆图标
     product_card.dart         商品卡（缩略图/标题/价格/评分）
     section_header.dart       "为你推荐"这种区块标题 + "更多"
@@ -94,3 +94,36 @@ lib/features/products/presentation/
 
 故意把 `ProductCard` 的标题换成一段很长的文字，让它撑爆卡片触发 `RenderFlex overflowed`，
 然后用 `maxLines` + `ellipsis` 修好。亲手制造一次溢出再修复，比看十遍文档都记得牢。
+
+
+## 维护阶段更新：无限自动轮播
+
+`HomeBanner` 在保留 PageView 与圆点局部重建的基础上，增加自动轮播：
+停留 3 秒后，用 400 毫秒动画进入下一张；最后一张继续同方向进入第一张，
+第一张也可以手动向右滑到最后一张。没有新增依赖，调用接口保持不变。
+
+### 虚拟页与真实页
+
+PageView.builder 不设置有限 itemCount，通过 `虚拟页 % 图片数量` 取图片和圆点。
+初始页选择图片数量的整数倍，给向左滑动预留空间；每次滚动结束将虚拟页无动画归位到
+中心附近的等价页，避免持续滑动最终走到物理边界。归位前后真实图片相同。
+
+`jumpToPage` 会同步产生滚动通知，因此内部归位有单独的重入保护，
+不能在旧滚动的 ScrollEnd 回调里不加保护地再次归位。
+≈ iOS 循环 UIScrollView：内容连续，内部偏移可以重设。
+
+### 自动轮播与手动操作
+
+- 使用单次 Timer，在滚动结束后重新等待 3 秒，避免固定周期打断用户刚完成的滑动。
+- 手指按下立即暂停，记录活动指针集合；全部手指释放且滚动停止后恢复。
+- 隐藏 Tab / 被其他路由覆盖时通过 TickerMode 暂停，应用进入后台通过生命周期通知暂停。
+- 空列表展示占位；单图不滚动；图片列表变化后重置页码。
+- dispose 取消 Timer、移除生命周期观察并释放 PageController / ValueNotifier。
+
+### 自测与练习
+
+自测：连续自动跨越首尾边界、反向滑动、按住图片、切换 Tab、进后台再返回，
+均不应出现跳错图片、计时器叠加或销毁后回调。对应测试为 `test/home_banner_test.dart`。
+
+练习：把停留时间改为组件可配置参数，并补测试验证参数变化后重新计时；
+保留图片、圆点和虚拟页三者之间的一致映射。

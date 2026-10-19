@@ -1,6 +1,9 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// 首页顶部 Banner：可左右滑动的图片轮播 + 底部小圆点指示器。
+/// 首页顶部 Banner：无限自动轮播 + 手动滑动 + 底部小圆点指示器。
 ///
 /// PageView ≈ iOS 的 UIPageViewController / 开了分页的 UIScrollView。
 /// 因为要"记住当前在第几页"来高亮对应圆点，是会变的状态 → StatefulWidget。
@@ -13,9 +16,116 @@ class HomeBanner extends StatefulWidget {
   State<HomeBanner> createState() => _HomeBannerState();
 }
 
-class _HomeBannerState extends State<HomeBanner> {
+class _HomeBannerState extends State<HomeBanner> with WidgetsBindingObserver {
   // PageController 控制/监听翻页（≈ 你持有的 UIScrollView 控制器）。
-  final _controller = PageController();
+  static const _interval = Duration(seconds: 3);
+  static const _animationDuration = Duration(milliseconds: 400);
+  // M1 维护演进：虚拟页取模映射图片；滚动结束后无动画归位，双向都不会走到边界。
+  // ≈ UIScrollView 的循环复用：物理位置可以重置，用户看到的内容保持连续。
+  int get _anchorPage =>
+      widget.imageUrls.length > 1 ? widget.imageUrls.length * 1000 : 0;
+  late final _controller = PageController(initialPage: _anchorPage);
+  Timer? _timer;
+  bool _tickerEnabled = false;
+  bool _foreground = true;
+  bool _scrolling = false;
+  bool _rebasing = false;
+  final _activePointers = <int>{};
+  int _imagesGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // go_router 的隐藏 Tab / 被其他页面覆盖的路由通过 TickerMode 暂停。
+    _tickerEnabled = TickerMode.valuesOf(context).enabled;
+    _scheduleNext();
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!listEquals(oldWidget.imageUrls, widget.imageUrls)) {
+      _timer?.cancel();
+      final generation = ++_imagesGeneration;
+      _current.value = 0;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || generation != _imagesGeneration) return;
+        if (_controller.hasClients) _rebaseTo(_anchorPage);
+        _scrolling = false;
+        _scheduleNext();
+      });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _scheduleNext();
+  }
+
+  void _scheduleNext() {
+    _timer?.cancel();
+    if (!mounted ||
+        !_tickerEnabled ||
+        !_foreground ||
+        _scrolling ||
+        _activePointers.isNotEmpty ||
+        widget.imageUrls.length < 2) {
+      return;
+    }
+    // 单次计时：手动操作结束后重计完整停留时间，不让固定周期抢用户的手势。
+    _timer = Timer(_interval, () {
+      if (!mounted || !_controller.hasClients) return;
+      final page = (_controller.page ?? _anchorPage.toDouble()).round();
+      unawaited(
+        _controller.animateToPage(
+          page + 1,
+          duration: _animationDuration,
+          curve: Curves.easeInOut,
+        ),
+      );
+    });
+  }
+
+  bool _onScroll(ScrollNotification notification) {
+    if (notification.depth != 0 || _rebasing) return false;
+    if (notification is ScrollStartNotification) {
+      _scrolling = true;
+      _timer?.cancel();
+    } else if (notification is ScrollEndNotification) {
+      _scrolling = false;
+      if (_controller.hasClients && widget.imageUrls.length > 1) {
+        final page = _controller.page!.round();
+        final normalized = _anchorPage + page % widget.imageUrls.length;
+        if (page != normalized) _rebaseTo(normalized);
+      }
+      _scheduleNext();
+    }
+    return false;
+  }
+
+  void _rebaseTo(int page) {
+    // jumpTo 会先结束原滚动并同步发通知；归位阶段不再次响应，避免重入旧页。
+    _rebasing = true;
+    try {
+      _controller.jumpToPage(page);
+    } finally {
+      _rebasing = false;
+    }
+  }
+
+  void _releasePointer(int pointer) {
+    _activePointers.remove(pointer);
+    _scheduleNext();
+  }
 
   // M13 性能优化：当前页下标从 `int _current` + setState 改成 ValueNotifier。
   // 原因见下方 build 的注释——setState 会重建整个 build（含 PageView），
@@ -28,6 +138,8 @@ class _HomeBannerState extends State<HomeBanner> {
   void dispose() {
     // 和 iOS 一样：持有的控制器/订阅必须释放，否则泄漏。dispose() ≈ deinit。
     // 这是 StatefulWidget 最重要的纪律——凡是 initState/字段里 new 出来的控制器/Notifier，都要在这里 dispose。
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     _current.dispose();
     super.dispose();
@@ -47,39 +159,58 @@ class _HomeBannerState extends State<HomeBanner> {
         child: Stack(
           // Stack ≈ SwiftUI ZStack / 往父 view 上叠加子 view，配合 Positioned 做绝对定位。
           children: [
-            PageView.builder(
-              controller: _controller,
-              itemCount: widget.imageUrls.length,
-              // 翻页时只更新 Notifier 的值——不 setState，所以 build 不重跑、PageView 不重建。
-              onPageChanged: (i) => _current.value = i,
-              itemBuilder: (context, i) {
-                // M13 练习：给网络图限「解码尺寸」，避免把远大于显示区的原图整张解进内存。
-                // cacheWidth 的单位是【物理像素】：显示宽度(逻辑像素) × devicePixelRatio。
-                // 例：banner 在 3x 手机上显示约 375pt 宽 → 解码到 ~1125px 就够清晰，
-                // 而不是把 picsum 给的原图按原分辨率塞进内存。DevTools 的
-                // Highlight Oversized Images 打开后，超配的图会被标红——加了这行就不再红。
-                // 类比 iOS：≈ 用 ImageIO/CGImageSourceCreateThumbnailAtIndex 生成缩略图，
-                // 而不是把大图整张 decode 成 UIImage 再缩放显示。
-                final dpr = MediaQuery.devicePixelRatioOf(context);
-                final cacheW = (MediaQuery.sizeOf(context).width * dpr).round();
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      widget.imageUrls[i],
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      cacheWidth: cacheW, // 只按需解码，省内存 + 减轻 Raster 负担
-                      errorBuilder: (c, e, s) => const ColoredBox(
-                        color: Color(0x11000000),
-                        child: Icon(Icons.image_outlined, size: 40),
-                      ),
-                    ),
+            if (widget.imageUrls.isEmpty)
+              const Center(child: Icon(Icons.image_outlined, size: 40))
+            else
+              Listener(
+                onPointerDown: (event) {
+                  _activePointers.add(event.pointer);
+                  _timer?.cancel();
+                },
+                onPointerUp: (event) => _releasePointer(event.pointer),
+                onPointerCancel: (event) => _releasePointer(event.pointer),
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onScroll,
+                  child: PageView.builder(
+                    controller: _controller,
+                    itemCount: widget.imageUrls.length > 1 ? null : 1,
+                    physics: widget.imageUrls.length > 1
+                        ? null
+                        : const NeverScrollableScrollPhysics(),
+                    // 翻页时只更新 Notifier 的值——不 setState，所以 build 不重跑、PageView 不重建。
+                    onPageChanged: (i) =>
+                        _current.value = i % widget.imageUrls.length,
+                    itemBuilder: (context, i) {
+                      // M13 练习：给网络图限「解码尺寸」，避免把远大于显示区的原图整张解进内存。
+                      // cacheWidth 的单位是【物理像素】：显示宽度(逻辑像素) × devicePixelRatio。
+                      // 例：banner 在 3x 手机上显示约 375pt 宽 → 解码到 ~1125px 就够清晰，
+                      // 而不是把 picsum 给的原图按原分辨率塞进内存。DevTools 的
+                      // Highlight Oversized Images 打开后，超配的图会被标红——加了这行就不再红。
+                      // 类比 iOS：≈ 用 ImageIO/CGImageSourceCreateThumbnailAtIndex 生成缩略图，
+                      // 而不是把大图整张 decode 成 UIImage 再缩放显示。
+                      final dpr = MediaQuery.devicePixelRatioOf(context);
+                      final cacheW = (MediaQuery.sizeOf(context).width * dpr)
+                          .round();
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            widget.imageUrls[i % widget.imageUrls.length],
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            cacheWidth: cacheW, // 只按需解码，省内存 + 减轻 Raster 负担
+                            errorBuilder: (c, e, s) => const ColoredBox(
+                              color: Color(0x11000000),
+                              child: Icon(Icons.image_outlined, size: 40),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+                ),
+              ),
             // 底部圆点指示器：用 Positioned 把它绝对定位在 PageView 之上。
             Positioned(
               bottom: 8,
