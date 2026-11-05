@@ -47,7 +47,7 @@
 | 层次 | 内容 | 回答的问题 |
 |---|---|---|
 | **主线实战** | [`Project/wan_android`](Project/wan_android)（WanShop 电商 App，M0–M13 讲义） | 一个完整 App 怎么从 0 搭到上架 |
-| **专题突破** | [`Project/state_lab`](Project/state_lab)（状态管理 S0–S6）、[`Project/native_lab`](Project/native_lab)（原生交互 L0–L9） | 某个难点怎么吃透 |
+| **专题突破** | [`Project/state_lab`](Project/state_lab)（状态管理 S0–S6）、[`Project/native_lab`](Project/native_lab)（原生交互 L0–L10） | 某个难点怎么吃透 |
 | **原理深挖** | [`doc/`](doc/README.md)（Provider / Riverpod 原理、测试体系、国际化、多环境打包） | 它**为什么**这样设计（面试向） |
 | **语言与入门** | [`Dart/`](Dart)、[`教程/`](教程) | Dart 语法、视频教程配套代码 |
 
@@ -69,7 +69,7 @@ WBFlutter/
 ├── Project/                    # 可运行的示例工程
 │   ├── wan_android/            # WanShop 电商 App（主线，M0–M13）
 │   ├── state_lab/              # 状态管理横向对比（setState/Provider/Bloc/GetX/Riverpod）
-│   ├── native_lab/             # 原生交互（MethodChannel/EventChannel/Pigeon/PlatformView/add-to-app）
+│   ├── native_lab/             # 原生交互（MethodChannel/EventChannel/Pigeon/PlatformView/FFI/add-to-app）
 │   └── wb_bloc_counter/        # 最小 Bloc 计数器示例
 ├── 教程/                        # 第三方视频教程 / 电子书的配套资料与代码
 │   ├── Flutter基础视频教程/
@@ -84,7 +84,7 @@ WBFlutter/
 |---|---|
 | [`doc/iOS转Flutter学习路线.md`](doc/iOS转Flutter学习路线.md) | 刚入门，想先看全局路线图 |
 | [`Project/wan_android/README.md`](Project/wan_android/README.md) | 想直接跑一个完整 App |
-| [`Project/native_lab/docs/lessons/README.md`](Project/native_lab/docs/lessons/README.md) | 要搞原生混编 / add-to-app / 插件 |
+| [`Project/native_lab/docs/lessons/README.md`](Project/native_lab/docs/lessons/README.md) | 要搞原生混编 / add-to-app / 插件 / FFI |
 | [`doc/README.md`](doc/README.md) | 面试复习、想搞懂底层机制 |
 
 ---
@@ -186,7 +186,7 @@ export FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
 | 4 | 状态管理（Riverpod 为主）⭐ | 1.5 周 | [`Project/state_lab`](Project/state_lab) + `doc/` 原理两篇 |
 | 5 | 异步、网络、数据持久化 | 1 周 | wan_android 的 M2 / M3 / M9 |
 | 6 | 路由导航（go_router） | 2–3 天 | wan_android 的 M5 |
-| 7 | 平台集成（你的强项）⭐ | 3–5 天 | [`Project/native_lab`](Project/native_lab) L0–L9 |
+| 7 | 平台集成（你的强项）⭐ | 3–5 天 | [`Project/native_lab`](Project/native_lab) L0–L10 |
 | 8 | 工程化、测试、发布 | 1 周 | 第 6 节 + `doc/` 工程化两篇 |
 | — | 综合实战 | 2–3 周 | [`Project/wan_android`](Project/wan_android) M0–M13 |
 
@@ -321,6 +321,7 @@ final router = GoRouter(
 | Flutter 里嵌原生视图（地图、相机） | `PlatformView` |
 | 原生 App 嵌 Flutter 页面 | add-to-app |
 | 封装复用能力 | 写 Flutter Plugin（platform interface + 双端实现） |
+| 复用已有 C/C++ SDK、要同步或高性能 | `dart:ffi`（FFI Plugin） |
 
 ```dart
 // Dart 侧
@@ -340,7 +341,7 @@ channel.setMethodCallHandler { call, result in
 ```
 
 > ⭐ 这是 iOS 背景最值钱的地方：别人卡在写原生侧，你能直接写 Swift/OC。
-> 完整十课见 [`Project/native_lab/docs/lessons/README.md`](Project/native_lab/docs/lessons/README.md)。
+> 完整十一课见 [`Project/native_lab/docs/lessons/README.md`](Project/native_lab/docs/lessons/README.md)。
 
 ---
 
@@ -465,7 +466,7 @@ nullable-getter: false      # of(context) 返回非空，少写一堆 !
 |---|---|---|
 | WanShop 综合实战 | M0–M13 | [`Project/wan_android/docs/lessons/`](Project/wan_android/docs/lessons/) |
 | 状态管理专题 | S0–S6 + `docs/tech/` | [`Project/state_lab/docs/lessons/`](Project/state_lab/docs/lessons/) |
-| 原生交互专题 | L0–L9 + 自测答案 + 面试总纲 | [`Project/native_lab/docs/lessons/`](Project/native_lab/docs/lessons/) |
+| 原生交互专题 | L0–L10 + 自测答案 + 面试总纲 | [`Project/native_lab/docs/lessons/`](Project/native_lab/docs/lessons/) |
 
 ---
 

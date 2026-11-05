@@ -1,0 +1,34 @@
+name: nl_sign_kit
+description: "NativeLab L10：把安全团队的 C 签名 SDK 封装成 FFI 插件（Android CMake / iOS SPM）。"
+version: 0.0.1
+publish_to: 'none'
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # dart:ffi 的易用封装：Utf8 / toNativeUtf8 / malloc / calloc。
+  ffi: ^2.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      # Android 只要 ffiPlugin：没有 pluginClass，不需要 GeneratedPluginRegistrant，
+      # Gradle 的 externalNativeBuild 会把 libnl_sign_kit.so 打进 APK。
+      android:
+        ffiPlugin: true
+      # iOS 同时声明 pluginClass：唯一的目的是让 GeneratedPluginRegistrant 调一次
+      # NlSignKitPlugin.register，在 register 里“碰”一下 C 符号，防止静态链接裁剪。
+      ios:
+        pluginClass: NlSignKitPlugin
+        ffiPlugin: true

@@ -1,0 +1,5 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # FFI 代码里大量 native 指针，按需保留默认规则即可。

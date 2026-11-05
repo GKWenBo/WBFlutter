@@ -6,17 +6,17 @@ void main() {
   // 教学点：widget test 类比 iOS 的 XCTest + 一点 UI Test 的混合体——
   // 不起模拟器、不渲染真像素，但真实构建 Widget 树、真实跑手势和动画帧，
   // 所以比 XCUITest 快几个数量级，团队里通常大量写。
-  testWidgets('课程列表展示 10 个课时', (tester) async {
+  testWidgets('课程列表展示 11 个课时', (tester) async {
     // pumpWidget 类比：把 rootViewController 装上 window 并走完一帧布局。
     await tester.pumpWidget(const NativeLabApp());
-    expect(lessonRegistry.length, 10);
+    expect(lessonRegistry.length, 11);
     expect(find.text('工程创建与原生工程解剖'), findsOneWidget);
     expect(find.text('MethodChannel：Flutter 调原生'), findsOneWidget);
   });
 
   testWidgets('点击 L8（成果在原生壳工程）只弹提示，不跳转', (tester) async {
     await tester.pumpWidget(const NativeLabApp());
-    // 全 10 课已完成，不再有锁定样本。L8/L9 是 add-to-app 课，成果在原生壳工程里，
+    // 全 11 课已完成，不再有锁定样本。L8/L9 是 add-to-app 课，成果在原生壳工程里，
     // App 内没有对应页面 → 点击应给"去 Xcode 打开"的提示，而不是门禁提示。
     // 列表是懒加载 ListView，L8 在 600 高的测试视口外，先滚动把它带进可见区再点。
     final l8 = find.text('add-to-app：原生工程接入 Flutter');

@@ -20,7 +20,7 @@ class Lesson {
     this.pageBuilder,
   });
 
-  final String id; // 'L0'...'L9'
+  final String id; // 'L0'...'L10'
   final String title; // 课程主题
   final String scenario; // 企业真实场景，列表里当副标题
   final LessonStatus status;

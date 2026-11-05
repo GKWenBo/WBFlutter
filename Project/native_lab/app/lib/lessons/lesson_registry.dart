@@ -7,6 +7,7 @@ import 'l4/l4_scan_page.dart';
 import 'l5/l5_pigeon_page.dart';
 import 'l6/l6_platform_view_page.dart';
 import 'l7/l7_plugin_page.dart';
+import 'l10/l10_ffi_sign_page.dart';
 
 /// 课程注册表：App 首页列表的数据源。
 /// 每课过关提交时手动翻状态；下一课开课时把它的 status 改成
@@ -81,5 +82,12 @@ final List<Lesson> lessonRegistry = [
     title: 'add-to-app：引擎管理与通信',
     scenario: '引擎预热、原生↔模块双向通信、路由协调',
     status: LessonStatus.done,
+  ),
+  Lesson(
+    id: 'L10',
+    title: 'FFI：直接调用 C 库',
+    scenario: '复用安全团队的 C 签名 SDK：下单签名 / 设备指纹 / 缓存校验',
+    status: LessonStatus.done,
+    pageBuilder: (_) => const L10FfiSignPage(),
   ),
 ];

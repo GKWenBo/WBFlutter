@@ -39,9 +39,16 @@ dependencies:
   nl_device_kit:
     path: ../plugins/nl_device_kit
 
+  # L10：本地 FFI 插件（Android CMake / iOS SPM，dart:ffi 直接调 C）
+  nl_sign_kit:
+    path: ../plugins/nl_sign_kit
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # L10 的 C 层已知向量测试要在宿主机编 dylib，直接 import package:ffi。
+  ffi: ^2.1.4
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

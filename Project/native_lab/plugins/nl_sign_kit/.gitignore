@@ -1,0 +1,15 @@
+# Dart / pub package 不需要提交 lock（与 nl_device_kit 一致）
+/pubspec.lock
+.dart_tool/
+.flutter-plugins-dependencies
+
+# 构建产物（Android CMake / iOS SPM）
+build/
+.cxx/
+.gradle/
+local.properties
+
+# IDE / 系统
+*.iml
+.idea/
+.DS_Store

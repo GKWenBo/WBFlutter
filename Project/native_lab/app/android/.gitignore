@@ -12,3 +12,6 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Kotlin/Gradle 增量编译缓存（Gradle 9 生成）
+.kotlin/
